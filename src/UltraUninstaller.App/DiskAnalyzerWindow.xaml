@@ -1,0 +1,87 @@
+<Window x:Class="UltraUninstaller.App.DiskAnalyzerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Disk Space Analyzer - UltraUninstaller"
+        Height="700" Width="880"
+        MinHeight="480" MinWidth="600">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- Path row -->
+            <RowDefinition Height="Auto"/>   <!-- Nav buttons -->
+            <RowDefinition Height="*"/>       <!-- List -->
+            <RowDefinition Height="Auto"/>   <!-- Delete row -->
+            <RowDefinition Height="Auto"/>   <!-- Status live region -->
+            <RowDefinition Height="90"/>       <!-- Force delete step log -->
+        </Grid.RowDefinitions>
+
+        <!-- Path row -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+            <Label Content="_Folder to analyze:" Target="{Binding ElementName=PathBox}" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+            <Button x:Name="ScanButton" Content="_Scan" DockPanel.Dock="Right" Click="ScanButton_Click"
+                    AutomationProperties.Name="Scan this folder" Width="80"/>
+            <TextBox x:Name="PathBox" Margin="8,0" VerticalAlignment="Center"
+                     AutomationProperties.Name="Folder path to analyze"
+                     KeyDown="PathBox_KeyDown"/>
+        </DockPanel>
+
+        <!-- Nav buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button x:Name="UpButton" Content="_Up one level" Click="UpButton_Click"
+                    AutomationProperties.Name="Go up one folder level"/>
+        </StackPanel>
+
+        <!-- Results list: same ListView+GridView+ContextMenu pattern as the program list on the
+             main window, which is confirmed to read and navigate correctly with JAWS. Multi-select
+             via Ctrl+Click / Ctrl+Space, same as the program list; Enter or double-click on a single
+             selected row drills into that folder. -->
+        <ListView x:Name="ResultsListView" Grid.Row="2"
+                  AutomationProperties.Name="Folder sizes, largest first"
+                  SelectionMode="Extended"
+                  VirtualizingPanel.IsVirtualizing="False"
+                  KeyDown="ResultsListView_KeyDown"
+                  MouseDoubleClick="ResultsListView_MouseDoubleClick"
+                  SelectionChanged="ResultsListView_SelectionChanged">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Folder" Width="500" DisplayMemberBinding="{Binding Name}"/>
+                    <GridViewColumn Header="Size" Width="150" DisplayMemberBinding="{Binding SizeDisplay}"/>
+                </GridView>
+            </ListView.View>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="_Open this folder" Click="ContextOpenFolder_Click"
+                              AutomationProperties.Name="Open this folder (drill down)"/>
+                    <Separator/>
+                    <MenuItem Header="_Delete selected (to Recycle Bin)" Click="ContextDeleteSelected_Click"
+                              AutomationProperties.Name="Delete selected folders to Recycle Bin"/>
+                    <MenuItem Header="_Force delete selected (for folders that won't delete normally)" Click="ContextForceDeleteSelected_Click"
+                              AutomationProperties.Name="Force delete selected folders"/>
+                </ContextMenu>
+            </ListView.ContextMenu>
+        </ListView>
+
+        <!-- Delete row -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,8">
+            <Button x:Name="DeleteSelectedButton" Content="_Delete selected (to Recycle Bin)" Click="DeleteSelectedButton_Click"
+                    AutomationProperties.Name="Delete selected folders to Recycle Bin" IsEnabled="False"/>
+            <Button x:Name="ForceDeleteSelectedButton" Content="F_orce delete selected (last resort)" Click="ForceDeleteSelectedButton_Click"
+                    AutomationProperties.Name="Force delete selected folders, for folders that will not delete normally" IsEnabled="False"/>
+        </StackPanel>
+
+        <!-- Live status region -->
+        <TextBlock x:Name="StatusText" Grid.Row="4" FontWeight="Bold" Margin="0,0,0,4"
+                   AutomationProperties.Name="Current status"
+                   AutomationProperties.LiveSetting="Assertive"
+                   Text="Enter a folder and press Scan. Select one or more rows (Ctrl+Click or Ctrl+Space) to delete them; press Enter on a row to open that folder."/>
+
+        <!-- Step log for Force Delete's multi-layer attempts (normal delete, image mount cleanup, ownership reset, permanent delete, scheduled-on-restart) -->
+        <ListBox x:Name="StepLogList" Grid.Row="5"
+                 AutomationProperties.Name="Force delete step log"/>
+    </Grid>
+</Window>

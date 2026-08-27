@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>UltraUninstaller.Core</RootNamespace>
+    <AssemblyName>UltraUninstaller.Core</AssemblyName>
+    <!-- Core targets plain net8.0 (not net8.0-windows) so it stays testable/buildable
+         cross-platform. Registry/WMI calls are guarded and only actually execute on Windows. -->
+    <Company>Demir Ajvazi</Company>
+    <Authors>Demir Ajvazi</Authors>
+    <Copyright>Copyright © Demir Ajvazi</Copyright>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>

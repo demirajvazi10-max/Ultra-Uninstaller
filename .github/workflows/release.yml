@@ -1,0 +1,62 @@
+name: Release
+
+# Tag pattern: v1.0.0, v1.2.3, etc. (standalone repo, so no per-app prefix like
+# the "video-v*"/"audio-v*" tags used in the monorepo suite). Push a tag matching
+# this to build and publish a release automatically - nothing else triggers this.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        run: dotnet restore UltraUninstaller.sln
+
+      - name: Publish UltraUninstaller (self-contained, single file)
+        run: >
+          dotnet publish src/UltraUninstaller.App/UltraUninstaller.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Zip portable build
+        shell: pwsh
+        run: Compress-Archive -Path publish\* -DestinationPath UltraUninstaller-portable-${{ steps.version.outputs.version }}.zip
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.version.outputs.version }} installer\UltraUninstaller.iss'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: UltraUninstaller ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            installer/Output/*.exe
+            UltraUninstaller-portable-${{ steps.version.outputs.version }}.zip

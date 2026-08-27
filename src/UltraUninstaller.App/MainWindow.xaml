@@ -1,0 +1,121 @@
+<Window x:Class="UltraUninstaller.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UltraUninstaller"
+        Height="640" Width="900"
+        MinHeight="480" MinWidth="640">
+
+    <DockPanel>
+        <!-- Native menu bar: Alt+T for Tools, fully keyboard navigable, read by JAWS like any Windows menu -->
+        <Menu DockPanel.Dock="Top" AutomationProperties.Name="Main menu">
+            <MenuItem Header="_File">
+                <MenuItem Header="_About UltraUninstaller..." Click="AboutMenuItem_Click"
+                          AutomationProperties.Name="About UltraUninstaller"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="ExitMenuItem_Click"
+                          AutomationProperties.Name="Exit UltraUninstaller"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_System Health Check..." Click="SystemHealthMenuItem_Click"
+                          AutomationProperties.Name="Open System Health Check"/>
+                <Separator/>
+                <MenuItem Header="_Disk Space Analyzer..." Click="DiskSpaceAnalyzerMenuItem_Click"
+                          AutomationProperties.Name="Open Disk Space Analyzer"/>
+                <MenuItem Header="_Registry Cleaner..." Click="RegistryCleanerMenuItem_Click"
+                          AutomationProperties.Name="Open Registry Cleaner"/>
+                <MenuItem Header="_Startup Manager..." Click="StartupManagerMenuItem_Click"
+                          AutomationProperties.Name="Open Startup Manager"/>
+                <MenuItem Header="_Junk Cleaner..." Click="JunkCleanerMenuItem_Click"
+                          AutomationProperties.Name="Open Junk Cleaner"/>
+                <Separator/>
+                <MenuItem x:Name="ShellIntegrationMenuItem" Header="Enable right-click 'Analyze size' in _Explorer"
+                          IsCheckable="True" Click="ShellIntegrationMenuItem_Click"
+                          AutomationProperties.Name="Enable right-click Analyze size in File Explorer"/>
+            </MenuItem>
+        </Menu>
+
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>   <!-- Search row -->
+                <RowDefinition Height="*"/>       <!-- Results list -->
+                <RowDefinition Height="Auto"/>   <!-- Options row -->
+                <RowDefinition Height="Auto"/>   <!-- Action buttons -->
+                <RowDefinition Height="Auto"/>   <!-- Status live region -->
+                <RowDefinition Height="120"/>     <!-- Step log -->
+            </Grid.RowDefinitions>
+
+            <!-- Search row -->
+            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                <Label Content="_Search installed programs:" Target="{Binding ElementName=SearchBox}" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                <Button x:Name="SearchButton" Content="_Search" DockPanel.Dock="Right" Click="SearchButton_Click"
+                        AutomationProperties.Name="Search installed programs" Width="90"/>
+                <Button x:Name="RefreshButton" Content="Show _all" DockPanel.Dock="Right" Click="RefreshButton_Click"
+                        AutomationProperties.Name="Show all installed programs" Width="90"/>
+                <TextBox x:Name="SearchBox" Margin="8,0" VerticalAlignment="Center"
+                         AutomationProperties.Name="Program name to search for"
+                         KeyDown="SearchBox_KeyDown"/>
+            </DockPanel>
+
+            <!-- Results list -->
+            <ListView x:Name="AppListView" Grid.Row="1"
+                      AutomationProperties.Name="Installed programs"
+                      SelectionMode="Extended"
+                      VirtualizingPanel.IsVirtualizing="False"
+                      SelectionChanged="AppListView_SelectionChanged">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Program name" Width="260" DisplayMemberBinding="{Binding DisplayName}"/>
+                        <GridViewColumn Header="Version" Width="90" DisplayMemberBinding="{Binding DisplayVersion}"/>
+                        <GridViewColumn Header="Publisher" Width="160" DisplayMemberBinding="{Binding Publisher}"/>
+                        <GridViewColumn Header="Estimated size" Width="110" DisplayMemberBinding="{Binding EstimatedSizeDisplay}"/>
+                        <GridViewColumn Header="Install location" Width="190" DisplayMemberBinding="{Binding InstallLocation}"/>
+                    </GridView>
+                </ListView.View>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <!-- Opens with the Menu/Apps key or Shift+F10 automatically - standard WPF behavior, no extra wiring needed -->
+                <ListView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="_Uninstall (silent)" Click="ContextUninstallSilent_Click"
+                                  AutomationProperties.Name="Uninstall selected program, silent method"/>
+                        <MenuItem Header="_Force uninstall now" Click="ContextForceUninstall_Click"
+                                  AutomationProperties.Name="Force uninstall selected program now"/>
+                        <Separator/>
+                        <MenuItem Header="_Open install folder" Click="ContextOpenFolder_Click"
+                                  AutomationProperties.Name="Open install folder in File Explorer"/>
+                        <MenuItem Header="_Copy uninstall string" Click="ContextCopyUninstallString_Click"
+                                  AutomationProperties.Name="Copy uninstall string to clipboard"/>
+                        <MenuItem Header="Show _details" Click="ContextShowDetails_Click"
+                                  AutomationProperties.Name="Show program details"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+            </ListView>
+
+            <!-- Options row -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,8">
+                <CheckBox x:Name="AllowForceRemovalCheckBox" Content="Allow _force removal if silent uninstall fails (recommended for stuck programs)"
+                          AutomationProperties.Name="Allow force removal if silent uninstall fails"
+                          VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Action buttons -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+                <Button x:Name="UninstallButton" Content="_Uninstall selected" Click="UninstallButton_Click"
+                        AutomationProperties.Name="Uninstall selected programs" IsEnabled="False"/>
+            </StackPanel>
+
+            <!-- Live status region: screen readers announce changes here automatically -->
+            <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,0,0,4" FontWeight="Bold"
+                       AutomationProperties.Name="Current status"
+                       AutomationProperties.LiveSetting="Assertive"
+                       Text="Ready. Search for a program or show all, then select it to uninstall. Press the Menu key on a program for more options."/>
+
+            <!-- Step-by-step log, also readable line by line -->
+            <ListBox x:Name="StepLogList" Grid.Row="5"
+                     AutomationProperties.Name="Uninstall step log"/>
+        </Grid>
+    </DockPanel>
+</Window>

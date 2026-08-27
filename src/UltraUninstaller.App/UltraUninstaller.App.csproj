@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>UltraUninstaller.App</RootNamespace>
+    <AssemblyName>UltraUninstaller</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Force-removal, registry writes, and restore points need elevation; the manifest
+         below requests it so the app never silently fails mid-uninstall for lack of rights. -->
+    <Company>Demir Ajvazi</Company>
+    <Authors>Demir Ajvazi</Authors>
+    <Product>UltraUninstaller</Product>
+    <Copyright>Copyright © Demir Ajvazi</Copyright>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UltraUninstaller.Core\UltraUninstaller.Core.csproj" />
+  </ItemGroup>
+
+</Project>
