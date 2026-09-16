@@ -317,3 +317,7 @@ on your machine — CapCut is a good first real-world test case for Force Uninst
 ## Author
 
 Demir Ajvazi - part of the [Ultra Creative Suite](https://github.com/demirajvazi10-max/Ultra-Creative-suite).
+
+## License
+
+GPL-3.0 — see the [LICENSE](./LICENSE) file.
