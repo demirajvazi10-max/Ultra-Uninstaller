@@ -240,6 +240,14 @@ touch:
 Each attempt is reported in a step log so you always know which method actually
 worked, not just "done".
 
+### About and supporting development
+
+**File → About UltraUninstaller** opens a small window with the version, author and
+license, plus buttons that open **GitHub Sponsors**, **Ko-fi**, **PayPal**, this
+project's GitHub page and the Ultra Creative Suite on GitHub in your browser. The text
+at the top is a read-only text box that gets focus first, so JAWS/NVDA can read it line
+by line with the arrow keys; Escape closes the window.
+
 ### Exit
 
 **File → Exit** in the main window's menu bar closes UltraUninstaller entirely

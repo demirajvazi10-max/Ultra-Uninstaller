@@ -200,13 +200,7 @@ public partial class MainWindow : Window
 
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show(
-            "UltraUninstaller\n" +
-            L.T("Part of the Ultra Creative Suite, by Demir Ajvazi.") + "\n\n" +
-            L.T("An accessible Windows uninstaller and cleaner, built screen-reader-first."),
-            L.T("About UltraUninstaller"),
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        new AboutWindow { Owner = this }.ShowDialog();
     }
 
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
