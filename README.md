@@ -196,6 +196,17 @@ value. Every removal (or reset) exports the affected registry key to a `.reg`
 backup file first (shown in the step log), so anything changed can be restored by
 double-clicking that file, exactly like Force Uninstall's Layer 3 backup.
 
+**Ignoring a finding on purpose.** Some findings are intentional - for example, tools
+like Defender Control disable Microsoft Defender partly by adding an Image File
+Execution Options "Debugger" entry for `MpCmdRun.exe`, which the Security review
+correctly reports. Select such an item and choose **Ignore selected (don't report
+again)** from the context menu: nothing is removed from the registry, the item is just
+no longer reported (and no longer counted by the System Health Check). The choice is
+tied to the entry's current data, so if that entry ever changes - say the Debugger
+starts pointing at a different program - it is reported again. **Show ignored items**
+lists them again, marked "ignored", and **Stop ignoring selected** brings them back.
+The list is stored per user under `HKCU\Software\UltraUninstaller\IgnoredRegistryIssues`.
+
 ### Junk Cleaner (Tools menu)
 
 Checks a short, fixed list of locations that are well known to be safe to clear -
@@ -303,6 +314,7 @@ New:
   from the Windows language or from **File → Language**.
 - A real **About** window with links to GitHub Sponsors, Ko-fi and PayPal.
 - Setup can install **only for the current user**, without administrator rights.
+- Registry Cleaner can **ignore** findings you keep on purpose (see Registry Cleaner).
 
 Fixed:
 - **Startup Manager** now really disables things (see "On disabling" above).

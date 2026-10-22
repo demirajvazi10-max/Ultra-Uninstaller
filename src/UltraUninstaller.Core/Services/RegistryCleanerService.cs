@@ -71,7 +71,11 @@ public sealed class RegistryCleanerService
         _backup = backup ?? new BackupService();
     }
 
-    public Task<IReadOnlyList<RegistryIssue>> ScanAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    /// <param name="includeIgnored">
+    /// False (the default, used by the Health Check) leaves out items the user chose to
+    /// ignore; the Registry Cleaner window passes true and marks them instead.
+    /// </param>
+    public Task<IReadOnlyList<RegistryIssue>> ScanAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default, bool includeIgnored = false)
     {
         return Task.Run(() =>
         {
@@ -91,7 +95,11 @@ public sealed class RegistryCleanerService
             progress?.Report(L.T("Checking startup commands for known suspicious patterns"));
             issues.AddRange(ScanSuspiciousStartupCommands());
 
+            foreach (var issue in issues)
+                issue.IsIgnored = IgnoredIssuesStore.IsIgnored(issue);
+
             return (IReadOnlyList<RegistryIssue>)issues
+                .Where(i => includeIgnored || !i.IsIgnored)
                 .OrderBy(i => i.Category)
                 .ThenBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -195,6 +203,7 @@ public sealed class RegistryCleanerService
                 Category = RegistryIssueCategory.OrphanedUninstallEntry,
                 DisplayName = app.DisplayName,
                 Reason = L.F("Its uninstaller no longer exists on disk: {0}", exePath),
+                Evidence = exePath,
                 Scope = app.Scope,
                 FullRegistryPath = app.FullRegistryPath,
                 ParentKeyPath = parentPath,
@@ -289,6 +298,7 @@ public sealed class RegistryCleanerService
                     Category = RegistryIssueCategory.OrphanedStartupEntry,
                     DisplayName = valueName,
                     Reason = L.F("Startup program no longer exists: {0}", exePath),
+                    Evidence = exePath,
                     Scope = scope,
                     FullRegistryPath = $@"{hiveName}\{subPath}",
                     ParentKeyPath = subPath,
@@ -330,6 +340,7 @@ public sealed class RegistryCleanerService
                         Category = RegistryIssueCategory.SecurityReview,
                         DisplayName = $"Image File Execution Options: {exeName}",
                         Reason = L.F("Windows will launch \"{0}\" instead of {1} whenever it's run. This exact technique (Debugger redirection) is a well-known way to hijack system tools; legitimate software almost never uses it. Review before removing.", debugger, exeName),
+                        Evidence = debugger,
                         Scope = RegistryScope.LocalMachine64,
                         FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{IfeoSubPath}\{exeName}",
                         ParentKeyPath = $@"{IfeoSubPath}\{exeName}",
@@ -351,6 +362,7 @@ public sealed class RegistryCleanerService
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "Winlogon Shell",
                     Reason = L.F("Windows is set to launch \"{0}\" as your desktop shell instead of the normal explorer.exe. This is a classic technique for replacing or hijacking the desktop. Review before resetting.", shell),
+                    Evidence = shell,
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WinlogonSubPath}",
                     ParentKeyPath = WinlogonSubPath,
@@ -367,6 +379,7 @@ public sealed class RegistryCleanerService
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "Winlogon Userinit",
                     Reason = L.F("Windows runs \"{0}\" at logon instead of just the normal userinit.exe. Anything appended here runs with your logon - a well-known persistence technique. Review before resetting.", userinit),
+                    Evidence = userinit,
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WinlogonSubPath}",
                     ParentKeyPath = WinlogonSubPath,
@@ -388,6 +401,7 @@ public sealed class RegistryCleanerService
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "AppInit_DLLs",
                     Reason = L.F("\"{0}\" is set to load into nearly every program that starts on this system. This mechanism is deprecated and almost never used legitimately today - it's a classic DLL injection technique. Review before clearing.", appInitDlls),
+                    Evidence = appInitDlls,
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WindowsNtSubPath}",
                     ParentKeyPath = WindowsNtSubPath,
@@ -436,6 +450,7 @@ public sealed class RegistryCleanerService
                     Category = RegistryIssueCategory.SuspiciousStartupCommand,
                     DisplayName = valueName,
                     Reason = L.F("This startup entry uses {0}: {1}", match.Label, rawCommand),
+                    Evidence = rawCommand,
                     Scope = scope,
                     FullRegistryPath = $@"{hiveName}\{subPath}",
                     ParentKeyPath = subPath,

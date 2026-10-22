@@ -13,6 +13,9 @@ public partial class RegistryCleanerWindow : Window
     private readonly RegistryCleanerService _cleaner = new();
     private readonly ObservableCollection<RegistryIssueListItem> _items = new();
 
+    /// <summary>Everything the last scan found, including ignored items (the list shows a filtered view).</summary>
+    private List<RegistryIssue> _allIssues = new();
+
     public RegistryCleanerWindow()
     {
         InitializeComponent();
@@ -41,7 +44,7 @@ public partial class RegistryCleanerWindow : Window
             SetStatus(message);
         });
 
-        var scanTask = _cleaner.ScanAsync(progress, progressWindow.Cts.Token);
+        var scanTask = _cleaner.ScanAsync(progress, progressWindow.Cts.Token, includeIgnored: true);
 
         var dialogWasShown = false;
 
@@ -62,14 +65,9 @@ public partial class RegistryCleanerWindow : Window
 
         try
         {
-            var issues = await scanTask;
-
-            foreach (var issue in issues)
-                _items.Add(new RegistryIssueListItem(issue));
-
-            SetStatus(issues.Count == 0
-                ? L.T("No issues found. The registry looks clean for the categories this tool checks.")
-                : L.F("Found {0}. Review them before removing - each is backed up automatically when removed.", L.N(issues.Count, "{0} issue", "{0} issues")));
+            _allIssues = (await scanTask).ToList();
+            RefreshList();
+            SetStatus(BuildScanSummary());
         }
         catch (OperationCanceledException)
         {
@@ -196,11 +194,103 @@ public partial class RegistryCleanerWindow : Window
         }
 
         foreach (var removed in removedItems)
+        {
             _items.Remove(removed);
+            _allIssues.Remove(removed.Issue);
+        }
 
         ScanButton.IsEnabled = true;
 
         SetStatus(L.F("Done. {0} of {1} changed.", removedItems.Count, L.N(selected.Count, "{0} item", "{0} items")));
+    }
+
+    // --- Ignoring items ------------------------------------------------------------------
+
+    private void RefreshList()
+    {
+        _items.Clear();
+        foreach (var issue in _allIssues.Where(i => ShowIgnoredCheckBox.IsChecked == true || !i.IsIgnored))
+            _items.Add(new RegistryIssueListItem(issue));
+    }
+
+    private string BuildScanSummary()
+    {
+        var active = _allIssues.Count(i => !i.IsIgnored);
+        var ignored = _allIssues.Count - active;
+
+        var summary = active == 0
+            ? L.T("No issues found. The registry looks clean for the categories this tool checks.")
+            : L.F("Found {0}. Review them before removing - each is backed up automatically when removed.", L.N(active, "{0} issue", "{0} issues"));
+
+        if (ignored > 0)
+        {
+            summary += " " + (ShowIgnoredCheckBox.IsChecked == true
+                ? L.F("{0} you chose to ignore are also shown, marked as ignored.", L.N(ignored, "{0} item", "{0} items"))
+                : L.F("{0} you chose to ignore are hidden; check Show ignored items to see them.", L.N(ignored, "{0} item", "{0} items")));
+        }
+
+        return summary;
+    }
+
+    private void ShowIgnoredCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshList();
+        SetStatus(BuildScanSummary());
+    }
+
+    private void ContextIgnoreSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = ResultsListView.SelectedItems.Cast<RegistryIssueListItem>().Where(i => !i.Issue.IsIgnored).ToList();
+        if (selected.Count == 0)
+        {
+            SetStatus(L.T("Nothing to ignore. Select one or more items that are not ignored yet."));
+            return;
+        }
+
+        try
+        {
+            foreach (var item in selected)
+            {
+                IgnoredIssuesStore.Ignore(item.Issue);
+                item.Issue.IsIgnored = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus(L.F("Could not save the ignore list: {0}", ex.Message));
+            return;
+        }
+
+        RefreshList();
+        SetStatus(L.F("{0} will not be reported again, unless the entry changes. Nothing was removed from the registry.",
+            L.N(selected.Count, "{0} item", "{0} items")));
+    }
+
+    private void ContextStopIgnoringSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = ResultsListView.SelectedItems.Cast<RegistryIssueListItem>().Where(i => i.Issue.IsIgnored).ToList();
+        if (selected.Count == 0)
+        {
+            SetStatus(L.T("None of the selected items are ignored. Check Show ignored items to see ignored ones."));
+            return;
+        }
+
+        try
+        {
+            foreach (var item in selected)
+            {
+                IgnoredIssuesStore.StopIgnoring(item.Issue);
+                item.Issue.IsIgnored = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus(L.F("Could not save the ignore list: {0}", ex.Message));
+            return;
+        }
+
+        RefreshList();
+        SetStatus(L.F("{0} will be reported again.", L.N(selected.Count, "{0} item", "{0} items")));
     }
 
     private void SetStatus(string message)

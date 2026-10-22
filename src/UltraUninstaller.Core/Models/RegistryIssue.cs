@@ -46,5 +46,18 @@ public sealed class RegistryIssue
     /// </summary>
     public object? CorrectedValueData { get; init; }
 
+    /// <summary>
+    /// The raw data that made this an issue (the Debugger path, the startup command, the
+    /// missing file...). Used so an "ignored" item comes back if that data ever changes -
+    /// ignoring today's Defender Control entry must not hide a different program later.
+    /// </summary>
+    public string? Evidence { get; init; }
+
+    /// <summary>True when the user chose "Ignore this item" for exactly this entry and evidence.</summary>
+    public bool IsIgnored { get; set; }
+
+    /// <summary>Stable identity of the entry, independent of the UI language.</summary>
+    public string IgnoreKey => $"{Category}|{FullRegistryPath}|{SubKeyNameToDelete ?? ValueNameToDelete}";
+
     public override string ToString() => DisplayName;
 }

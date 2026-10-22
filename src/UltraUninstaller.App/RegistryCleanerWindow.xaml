@@ -18,6 +18,11 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
             <Button x:Name="ScanButton" Content="{l:Tr '_Scan for issues'}" Click="ScanButton_Click"
                     AutomationProperties.Name="{l:Tr 'Scan the registry for orphaned entries'}"/>
+            <!-- Items the user chose to ignore are hidden by default; this shows them again
+                 (marked "ignored") so they can be reviewed or un-ignored. -->
+            <CheckBox x:Name="ShowIgnoredCheckBox" Content="{l:Tr 'Show _ignored items'}" Margin="16,0,0,0"
+                      VerticalAlignment="Center" Click="ShowIgnoredCheckBox_Click"
+                      AutomationProperties.Name="{l:Tr 'Show ignored items'}"/>
         </StackPanel>
 
         <ListView x:Name="ResultsListView" Grid.Row="1"
@@ -45,6 +50,11 @@
                               AutomationProperties.Name="{l:Tr 'Show details for the selected issue'}"/>
                     <MenuItem Header="{l:Tr '_Search online for information about this'}" Click="ContextSearchOnline_Click"
                               AutomationProperties.Name="{l:Tr 'Search online for information about the selected issue'}"/>
+                    <Separator/>
+                    <MenuItem Header="{l:Tr '_Ignore selected (don\'t report again)'}" Click="ContextIgnoreSelected_Click"
+                              AutomationProperties.Name="{l:Tr 'Ignore selected items, do not report them again'}"/>
+                    <MenuItem Header="{l:Tr 'S_top ignoring selected'}" Click="ContextStopIgnoringSelected_Click"
+                              AutomationProperties.Name="{l:Tr 'Stop ignoring selected items'}"/>
                 </ContextMenu>
             </ListView.ContextMenu>
         </ListView>

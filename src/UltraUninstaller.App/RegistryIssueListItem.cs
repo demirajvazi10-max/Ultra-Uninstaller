@@ -15,7 +15,11 @@ public sealed class RegistryIssueListItem
     public string DisplayName => Issue.DisplayName;
     public string Reason => Issue.Reason;
 
-    public string CategoryDisplay => Issue.Category switch
+    public string CategoryDisplay => Issue.IsIgnored
+        ? L.F("{0} (ignored)", BaseCategoryDisplay)
+        : BaseCategoryDisplay;
+
+    private string BaseCategoryDisplay => Issue.Category switch
     {
         RegistryIssueCategory.OrphanedUninstallEntry => L.T("Orphaned Uninstall entry"),
         RegistryIssueCategory.OrphanedStartupEntry => L.T("Orphaned Startup entry"),
