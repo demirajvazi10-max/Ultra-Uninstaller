@@ -49,7 +49,6 @@ public sealed class RegistryCleanerService
     private const string WinlogonSubPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
     private const string WindowsNtSubPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows";
     private const string CorrectShell = "explorer.exe";
-    private const string CorrectUserinit = @"C:\Windows\system32\userinit.exe,";
 
     /// <summary>Known "living off the land" abuse patterns: (label, check). Deliberately a short, high-confidence list - not an attempt at a full malware signature database.</summary>
     private static readonly (string Label, Func<string, bool> IsMatch)[] SuspiciousCommandPatterns =
@@ -107,6 +106,13 @@ public sealed class RegistryCleanerService
     public async Task<RegistryRemoveOutcome> RemoveAsync(RegistryIssue issue)
     {
         var backupOutcome = await _backup.ExportRegistryKeyAsync(issue.FullRegistryPath, issue.DisplayName);
+
+        // Every removal promises a .reg backup first. If that backup could not be made,
+        // stop here instead of deleting something that could then never be restored.
+        if (!backupOutcome.Success)
+            return new RegistryRemoveOutcome(false,
+                L.F("Nothing was changed, because the backup could not be created first: {0}", backupOutcome.Message ?? L.T("reg.exe export failed.")),
+                null);
 
         try
         {
@@ -210,6 +216,13 @@ public sealed class RegistryCleanerService
     /// </summary>
     private static bool IsConfidentlyMissing(string path)
     {
+        // A bare file name like "rundll32.exe" or "ctfmon.exe" is found through the
+        // system PATH, not the current folder. Checking it as a relative path made
+        // Windows' own tools (and every ClickOnce app, which uninstalls via rundll32)
+        // look "missing". Without a full path we can't be sure - so never flag it.
+        if (!Path.IsPathFullyQualified(path))
+            return false;
+
         if (File.Exists(path))
             return false;
 
@@ -331,7 +344,7 @@ public sealed class RegistryCleanerService
         using (var winlogonKey = baseKey.OpenSubKey(WinlogonSubPath))
         {
             var shell = winlogonKey?.GetValue("Shell") as string;
-            if (!string.IsNullOrWhiteSpace(shell) && !string.Equals(shell.Trim(), CorrectShell, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(shell) && !IsDefaultShell(shell))
             {
                 issues.Add(new RegistryIssue
                 {
@@ -347,7 +360,7 @@ public sealed class RegistryCleanerService
             }
 
             var userinit = winlogonKey?.GetValue("Userinit") as string;
-            if (!string.IsNullOrWhiteSpace(userinit) && !string.Equals(userinit.Trim(), CorrectUserinit, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(userinit) && !IsDefaultUserinit(userinit))
             {
                 issues.Add(new RegistryIssue
                 {
@@ -358,7 +371,7 @@ public sealed class RegistryCleanerService
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WinlogonSubPath}",
                     ParentKeyPath = WinlogonSubPath,
                     ValueNameToDelete = "Userinit",
-                    CorrectedValueData = CorrectUserinit,
+                    CorrectedValueData = DefaultUserinit,
                 });
             }
         }
@@ -432,6 +445,28 @@ public sealed class RegistryCleanerService
         }
 
         return issues;
+    }
+
+    /// <summary>
+    /// Windows' normal Userinit value, built from the real system folder - Windows is not
+    /// always on C:, and comparing against a hard-coded "C:\Windows\..." flagged (and would
+    /// have "reset" to a wrong path) every system installed on another drive.
+    /// </summary>
+    private static string DefaultUserinit => Path.Combine(Environment.SystemDirectory, "userinit.exe") + ",";
+
+    private static bool IsDefaultShell(string value)
+    {
+        var normalized = Environment.ExpandEnvironmentVariables(value.Trim()).Trim('"');
+        return string.Equals(normalized, CorrectShell, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(normalized, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), CorrectShell), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDefaultUserinit(string value)
+    {
+        var normalized = Environment.ExpandEnvironmentVariables(value.Trim()).TrimEnd(',', ' ');
+        var expected = Path.Combine(Environment.SystemDirectory, "userinit.exe");
+        return string.Equals(normalized, expected, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(normalized, "userinit.exe", StringComparison.OrdinalIgnoreCase);
     }
 
     private static RegistryKey OpenBaseKey(RegistryScope scope) => scope switch

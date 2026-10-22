@@ -80,7 +80,8 @@ public sealed class DiskSpaceAnalyzerService
                 results.Add(new FolderSizeEntry
                 {
                     FullPath = rootPath,
-                    Name = "(files directly in this folder)",
+                    Name = LooseFilesEntryName,
+                    IsLooseFiles = true,
                     SizeBytes = looseFilesSize,
                 });
             }
@@ -102,6 +103,25 @@ public sealed class DiskSpaceAnalyzerService
     /// Windows Desktop framework, which would stop Core from being buildable
     /// cross-platform.
     /// </summary>
+    /// <summary>Fixed marker name of the "loose files" row (translated only for display).</summary>
+    public const string LooseFilesEntryName = "(files directly in this folder)";
+
+    /// <summary>
+    /// Sends only the files lying directly in <paramref name="folderPath"/> to the Recycle
+    /// Bin - never the folder itself or its subfolders. This is what deleting the
+    /// "(files directly in this folder)" row means; earlier versions passed the row's
+    /// path (= the folder being viewed) to the normal delete and so tried to delete the
+    /// WHOLE folder you were looking at.
+    /// </summary>
+    public async Task<IReadOnlyList<DeleteOutcome>> DeleteLooseFilesToRecycleBinAsync(string folderPath)
+    {
+        string[] files;
+        try { files = Directory.GetFiles(folderPath); }
+        catch (Exception ex) { return new[] { new DeleteOutcome(folderPath, false, ex.Message) }; }
+
+        return await DeleteToRecycleBinAsync(files);
+    }
+
     public async Task<IReadOnlyList<DeleteOutcome>> DeleteToRecycleBinAsync(IEnumerable<string> paths)
     {
         var outcomes = new List<DeleteOutcome>();
@@ -114,6 +134,9 @@ public sealed class DiskSpaceAnalyzerService
                 {
                     if (!Directory.Exists(path) && !File.Exists(path))
                         return new DeleteOutcome(path, true, L.T("Already gone."));
+
+                    if (Directory.Exists(path) && PathSafety.IsProtected(path))
+                        return new DeleteOutcome(path, false, L.T("This is a Windows system folder or a main user folder, so UltraUninstaller will not delete it."));
 
                     var result = ShellRecycleBin.SendToRecycleBin(path);
                     return result.Success

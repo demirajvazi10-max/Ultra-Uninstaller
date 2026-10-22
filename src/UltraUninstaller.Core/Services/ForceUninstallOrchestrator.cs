@@ -66,11 +66,28 @@ public sealed class ForceUninstallOrchestrator
         var command = InstallerTypeDetector.BuildSilentCommand(app);
         if (command is not null)
         {
+            var started = DateTime.UtcNow;
             var runOutcome = await _silentRunner.RunAsync(command, options.SilentUninstallTimeout);
 
             // Some legitimate uninstallers exit non-zero even on success, so re-check
             // the registry directly instead of trusting the exit code alone.
-            var stillPresent = _scanner.FindByName(app.DisplayName).Any(a => a.RegistryKeyName == app.RegistryKeyName);
+            //
+            // Many uninstallers (NSIS, Inno Setup and others) copy themselves to Temp,
+            // start that copy and exit immediately, so "the process exited" does not mean
+            // "the uninstall is finished". Checking only once, right away, reported a
+            // still-running uninstall as failed - and with force removal allowed, deleted
+            // files underneath it. So keep checking until the entry disappears or the
+            // remaining time runs out.
+            var stillPresent = IsStillInstalled(app);
+            if (stillPresent && runOutcome.ExitCode is not null)
+            {
+                var deadline = started + options.SilentUninstallTimeout;
+                while (stillPresent && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2));
+                    stillPresent = IsStillInstalled(app);
+                }
+            }
 
             if (!stillPresent)
             {
@@ -155,4 +172,7 @@ public sealed class ForceUninstallOrchestrator
             BackupPath = backupPath,
         };
     }
+
+    private bool IsStillInstalled(InstalledApp app) =>
+        _scanner.ScanInstalledApps().Any(a => a.RegistryKeyName == app.RegistryKeyName && a.Scope == app.Scope);
 }

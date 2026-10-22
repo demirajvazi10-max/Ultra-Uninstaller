@@ -31,6 +31,17 @@ internal static class RebootDeleteScheduler
             {
                 foreach (var subDir in Directory.GetDirectories(path))
                 {
+                    // A junction/symlink inside the folder must be removed as a LINK only.
+                    // Recursing into it would schedule the files it points to - possibly
+                    // somewhere else entirely on the disk - for deletion as well.
+                    if ((File.GetAttributes(subDir) & FileAttributes.ReparsePoint) != 0)
+                    {
+                        if (!ScheduleSingle(subDir))
+                            return (false, scheduled, L.F("Could not schedule {0} (Win32 error {1}).", subDir, Marshal.GetLastWin32Error()));
+                        scheduled++;
+                        continue;
+                    }
+
                     var (_, count, error) = ScheduleDirectoryForDeletion(subDir);
                     scheduled += count;
                     if (error is not null)

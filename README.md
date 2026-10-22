@@ -296,6 +296,45 @@ Everything is translated - menus, buttons, list columns, status messages, step l
 confirmation dialogs, and the names screen readers announce for each control - so
 JAWS/NVDA users and sighted users always get the same language.
 
+## Changes in 1.1
+
+New:
+- The whole app and its installer in **Serbian (Latin script)**, chosen automatically
+  from the Windows language or from **File → Language**.
+- A real **About** window with links to GitHub Sponsors, Ko-fi and PayPal.
+- Setup can install **only for the current user**, without administrator rights.
+
+Fixed:
+- **Startup Manager** now really disables things (see "On disabling" above).
+- **Status messages are now actually announced by screen readers.** WPF needs the app
+  to raise a "live region changed" event itself; before, results only appeared in the
+  status line silently. Results of an uninstall, delete or enable/disable are also
+  announced *after* the list refreshes, so the refresh no longer talks over them.
+- **Silent uninstall waited too little.** Many uninstallers (NSIS, Inno Setup...) hand
+  the work to a copy of themselves and exit at once; that was reported as a failure
+  and, with force removal allowed, files were deleted while the real uninstall was
+  still running. UltraUninstaller now keeps checking until the program is really gone.
+- **MSI programs registered as `MsiExec /I{...}` were repaired instead of removed.**
+  `/I` is now switched to `/X` for silent removal.
+- **Force removal could delete far too much:** a folder named after the *publisher*
+  (e.g. all of "Mozilla" when removing one Mozilla program), any shortcut whose name
+  merely contained the program's name, and a bogus install location such as
+  "C:\Program Files". It now removes only the program's own folders and shortcuts,
+  and a safety check refuses Windows folders, drive roots and the main user folders
+  everywhere something can be deleted (including Disk Analyzer and Force Delete).
+- **Disk Analyzer:** deleting the "(files directly in this folder)" row tried to delete
+  the whole folder being viewed. It now deletes only those loose files.
+- **Registry Cleaner** no longer removes anything if its `.reg` backup could not be
+  made first, no longer flags Windows tools and ClickOnce apps whose command has no
+  full path (e.g. `rundll32.exe`), and no longer flags Userinit/Shell on systems where
+  Windows is not on drive C:.
+- Tools whose output is long (`takeown`, `schtasks`, uninstallers) could hang until
+  their timeout because their output was only read after they finished; it is now
+  read while they run. This also fixes scheduled tasks sometimes missing from Startup
+  Manager.
+- "Restore point created" was announced even when Windows skipped creating one.
+- Restart-scheduled deletion and folder backups no longer follow junctions/symlinks.
+
 ## How Force Uninstall works
 
 1. **Layer 1 — Native silent.** Reads `QuietUninstallString` (or `UninstallString`)

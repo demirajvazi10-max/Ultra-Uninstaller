@@ -37,27 +37,10 @@ public sealed class BackupService
             var fileName = $"{SanitizeForFileName(label)}_{DateTime.Now:yyyyMMdd_HHmmss}.reg";
             var fullFilePath = Path.Combine(_backupRootFolder, fileName);
 
-            var psi = new ProcessStartInfo
-            {
-                FileName = "reg.exe",
-                Arguments = $"export \"{fullRegistryPath}\" \"{fullFilePath}\" /y",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+            var result = await ProcessRunner.RunAsync("reg.exe", $"export \"{fullRegistryPath}\" \"{fullFilePath}\" /y", TimeSpan.FromMinutes(2));
 
-            using var process = Process.Start(psi);
-            if (process is null)
-                return new BackupOutcome(false, null, L.T("Could not start reg.exe."));
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                var error = await process.StandardError.ReadToEndAsync();
-                return new BackupOutcome(false, null, string.IsNullOrWhiteSpace(error) ? L.T("reg.exe export failed.") : error);
-            }
+            if (result.ExitCode != 0 || !File.Exists(fullFilePath))
+                return new BackupOutcome(false, null, result.CombinedOutput ?? L.T("reg.exe export failed."));
 
             return new BackupOutcome(true, fullFilePath, null);
         }
@@ -112,29 +95,21 @@ public sealed class BackupService
     {
         try
         {
-            var psi = new ProcessStartInfo
+            // PowerShell's Checkpoint-Computer only WARNS (exit code 0) when it skips the
+            // restore point - e.g. System Protection is off or one was made in the last
+            // 24 hours - so ask it explicitly for a non-zero exit code in that case,
+            // otherwise "restore point created" would be announced when none exists.
+            var script = "$WarningPreference='Stop'; $ErrorActionPreference='Stop'; " +
+                         $"Checkpoint-Computer -Description '{description.Replace("'", "''")}' -RestorePointType 'APPLICATION_UNINSTALL'";
+            var result = await ProcessRunner.RunAsync("powershell.exe",
+                $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{script.Replace("\"", "\\\"")}\"", TimeSpan.FromMinutes(5));
+
+            if (result.ExitCode != 0)
             {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -Command \"Checkpoint-Computer -Description '{description.Replace("'", "''")}' -RestorePointType 'APPLICATION_UNINSTALL'\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null)
-                return new BackupOutcome(false, null, L.T("Could not start PowerShell."));
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                var error = await process.StandardError.ReadToEndAsync();
                 return new BackupOutcome(false, null,
-                    string.IsNullOrWhiteSpace(error)
+                    string.IsNullOrWhiteSpace(result.StandardError)
                         ? L.T("Restore point could not be created (System Protection may be off, or one was already made recently).")
-                        : error);
+                        : result.StandardError.Trim());
             }
 
             return new BackupOutcome(true, null, L.T("Restore point created."));
@@ -147,11 +122,32 @@ public sealed class BackupService
 
     private static long GetDirectorySize(string path)
     {
+        // Walk folder by folder, skipping junctions/symlinks: following them can loop
+        // forever or wander into a different part of the disk.
         long total = 0;
-        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        var pending = new Stack<string>();
+        pending.Push(path);
+        while (pending.Count > 0)
         {
-            try { total += new FileInfo(file).Length; }
-            catch { /* Skip files we can't stat (locked, permissions) rather than fail the whole scan. */ }
+            var current = pending.Pop();
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(current))
+                {
+                    try { total += new FileInfo(file).Length; }
+                    catch { /* Skip files we can't stat (locked, permissions). */ }
+                }
+
+                foreach (var dir in Directory.EnumerateDirectories(current))
+                {
+                    if (!IsReparsePoint(dir))
+                        pending.Push(dir);
+                }
+            }
+            catch
+            {
+                // Unreadable folder - skip it rather than fail the whole backup.
+            }
         }
         return total;
     }
@@ -167,8 +163,18 @@ public sealed class BackupService
         }
         foreach (var subDir in Directory.EnumerateDirectories(sourceDir))
         {
-            CopyDirectory(subDir, Path.Combine(destinationDir, Path.GetFileName(subDir)));
+            if (IsReparsePoint(subDir))
+                continue; // Don't follow junctions/symlinks - see GetDirectorySize.
+
+            try { CopyDirectory(subDir, Path.Combine(destinationDir, Path.GetFileName(subDir))); }
+            catch { /* Best-effort: an unreadable subfolder shouldn't abort the whole backup. */ }
         }
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        try { return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0; }
+        catch { return true; }
     }
 
     private static string SanitizeForFileName(string input)

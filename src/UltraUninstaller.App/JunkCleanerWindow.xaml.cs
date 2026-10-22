@@ -189,6 +189,6 @@ public partial class JunkCleanerWindow : Window
 
     private void SetStatus(string message)
     {
-        StatusText.Text = message;
+        LiveAnnouncer.Announce(StatusText, message);
     }
 }

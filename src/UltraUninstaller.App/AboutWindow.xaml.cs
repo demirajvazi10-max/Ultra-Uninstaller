@@ -47,11 +47,11 @@ public partial class AboutWindow : Window
             // elevated process can silently fail to reach the browser. explorer.exe runs at the
             // normal user level and hands the link over reliably (same fix as "Search online").
             Process.Start(new ProcessStartInfo("explorer.exe", url) { UseShellExecute = true });
-            StatusText.Text = L.T("Opening the page in your browser.");
+            LiveAnnouncer.Announce(StatusText, L.T("Opening the page in your browser."));
         }
         catch (Exception)
         {
-            StatusText.Text = L.F("The page could not be opened. The address is: {0}", url);
+            LiveAnnouncer.Announce(StatusText, L.F("The page could not be opened. The address is: {0}", url));
         }
     }
 

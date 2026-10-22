@@ -23,46 +23,17 @@ public sealed class SilentUninstallRunner
     /// </summary>
     public async Task<SilentRunOutcome> RunAsync(UninstallCommand command, TimeSpan timeout)
     {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = command.FileName,
-                Arguments = command.Arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-            };
+        // Output is read while the uninstaller runs (see ProcessRunner) - reading it only
+        // after exit could deadlock a chatty uninstaller until the timeout killed it.
+        var result = await ProcessRunner.RunAsync(command.FileName, command.Arguments, timeout);
 
-            using var process = Process.Start(psi);
-            if (process is null)
-                return new SilentRunOutcome(false, null, L.T("Process failed to start."));
+        if (result.TimedOut)
+            return new SilentRunOutcome(false, null, L.F("Uninstaller did not finish within {0:0} seconds and was stopped.", timeout.TotalSeconds));
 
-            using var cts = new CancellationTokenSource(timeout);
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                TryKill(process);
-                return new SilentRunOutcome(false, null, L.F("Uninstaller did not finish within {0:0} seconds and was stopped.", timeout.TotalSeconds));
-            }
+        if (result.ExitCode == -1 && string.IsNullOrEmpty(result.StandardOutput) && !string.IsNullOrWhiteSpace(result.StandardError))
+            return new SilentRunOutcome(false, null, result.StandardError);
 
-            var stderr = await process.StandardError.ReadToEndAsync();
-            return new SilentRunOutcome(process.ExitCode == 0, process.ExitCode, string.IsNullOrWhiteSpace(stderr) ? null : stderr);
-        }
-        catch (Exception ex)
-        {
-            return new SilentRunOutcome(false, null, ex.Message);
-        }
-    }
-
-    private static void TryKill(Process process)
-    {
-        try { process.Kill(entireProcessTree: true); }
-        catch { /* Best-effort; nothing more we can do if this fails. */ }
+        return new SilentRunOutcome(result.ExitCode == 0, result.ExitCode,
+            string.IsNullOrWhiteSpace(result.StandardError) ? null : result.StandardError.Trim());
     }
 }

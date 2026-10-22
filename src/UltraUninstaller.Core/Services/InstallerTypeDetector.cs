@@ -66,7 +66,11 @@ public static class InstallerTypeDetector
 
         return kind switch
         {
-            InstallerKind.Msi => BuildMsiQuietCommand(app) ?? new UninstallCommand(baseFile, AppendIfMissing(baseArgs, "/quiet /norestart"), kind),
+            // Many MSI UninstallStrings are "MsiExec.exe /I{ProductCode}" - /I means install/repair
+            // (it only shows the maintenance dialog interactively). Run quietly as-is it would
+            // silently REPAIR the product instead of removing it, so switch it to /X.
+            InstallerKind.Msi => BuildMsiQuietCommand(app)
+                ?? new UninstallCommand(baseFile, AppendIfMissing(Regex.Replace(baseArgs, @"(?i)(^|\s)/I(?=\s*\{)", "$1/X"), "/quiet /norestart"), kind),
             InstallerKind.InnoSetup => new UninstallCommand(baseFile, AppendIfMissing(baseArgs, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"), kind),
             InstallerKind.NsisSetup => new UninstallCommand(baseFile, AppendIfMissing(baseArgs, "/S"), kind),
             InstallerKind.Squirrel => new UninstallCommand(baseFile, AppendIfMissing(baseArgs, "--silent"), kind),

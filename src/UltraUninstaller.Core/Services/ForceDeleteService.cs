@@ -47,6 +47,18 @@ public sealed class ForceDeleteService
             }
         }
 
+        // Never force anything on Windows' own folders, drive roots or the main user folders.
+        if (PathSafety.IsProtected(path))
+        {
+            return new ForceDeleteResult
+            {
+                Success = false,
+                LayerUsed = ForceDeleteLayer.Failed,
+                Steps = steps,
+                FailureReason = L.T("This is a Windows system folder or a main user folder, so UltraUninstaller will not delete it."),
+            };
+        }
+
         // --- Layer 1: normal delete -------------------------------------------------
         Report(L.F("Trying a normal delete of {0}", path), OperationStepStatus.Started);
         if (TryRecycleBin())
@@ -156,42 +168,7 @@ public sealed class ForceDeleteService
 
     private static async Task<(int ExitCode, string? Output)> RunProcessAsync(string fileName, string arguments, TimeSpan timeout)
     {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null)
-                return (-1, L.F("Could not start {0}.", fileName));
-
-            using var cts = new CancellationTokenSource(timeout);
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return (-1, L.F("{0} did not finish within {1:0} seconds and was stopped.", fileName, timeout.TotalSeconds));
-            }
-
-            var stdout = await process.StandardOutput.ReadToEndAsync();
-            var stderr = await process.StandardError.ReadToEndAsync();
-            var combined = string.Join(" ", new[] { stdout, stderr }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
-
-            return (process.ExitCode, string.IsNullOrWhiteSpace(combined) ? null : combined);
-        }
-        catch (Exception ex)
-        {
-            return (-1, ex.Message);
-        }
+        var result = await ProcessRunner.RunAsync(fileName, arguments, timeout);
+        return (result.ExitCode, result.CombinedOutput);
     }
 }

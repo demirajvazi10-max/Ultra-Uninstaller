@@ -304,6 +304,7 @@ public partial class MainWindow : Window
         StepLogList.Items.Clear();
 
         var options = new ForceUninstallOptions { AllowForceRemoval = forceAllowed };
+        var summaries = new List<string>();
 
         foreach (var item in selected)
         {
@@ -321,15 +322,22 @@ public partial class MainWindow : Window
                 });
             });
 
-            SetStatus(result.Success
+            var summary = result.Success
                 ? L.F("{0} was uninstalled successfully using {1}.", item.DisplayName, DescribeLayer(result.LayerUsed))
-                : L.F("{0} could not be fully uninstalled. {1}", item.DisplayName, result.FailureReason));
+                : L.F("{0} could not be fully uninstalled. {1}", item.DisplayName, result.FailureReason);
+            summaries.Add(summary);
+            StepLogList.Items.Add(summary);
+            SetStatus(summary);
         }
 
         SearchButton.IsEnabled = true;
         RefreshButton.IsEnabled = true;
 
         LoadAllApps();
+
+        // Announce the outcome LAST: reloading the list sets its own "N programs loaded"
+        // status, which used to replace the result before a screen reader could say it.
+        SetStatus(string.Join(" ", summaries));
     }
 
     private static string DescribeLayer(UninstallLayer layer) => layer switch
@@ -401,6 +409,6 @@ public partial class MainWindow : Window
 
     private void SetStatus(string message)
     {
-        StatusText.Text = message;
+        LiveAnnouncer.Announce(StatusText, message);
     }
 }

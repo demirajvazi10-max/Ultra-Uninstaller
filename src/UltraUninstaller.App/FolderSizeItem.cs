@@ -20,9 +20,7 @@ public sealed class FolderSizeItem
     /// Core names the "loose files" pseudo-row with a fixed English marker (it's also how
     /// IsDrillable recognizes it), so only the displayed text is translated here.
     /// </summary>
-    public string Name => IsDrillable ? Entry.Name : L.T(LooseFilesMarker);
-
-    private const string LooseFilesMarker = "(files directly in this folder)";
+    public string Name => IsDrillable ? Entry.Name : L.T(Entry.Name);
     public string FullPath => Entry.FullPath;
     public double SizeGb => Entry.SizeGb;
 
@@ -38,7 +36,7 @@ public sealed class FolderSizeItem
     }
 
     /// <summary>Loose files at this level (not a real subfolder) can't be drilled into.</summary>
-    public bool IsDrillable => Entry.Name != LooseFilesMarker;
+    public bool IsDrillable => !Entry.IsLooseFiles;
 
     /// <summary>
     /// What a screen reader announces for this row - bound via ItemContainerStyle,

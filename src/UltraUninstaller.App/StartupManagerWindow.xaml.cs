@@ -222,6 +222,6 @@ public partial class StartupManagerWindow : Window
 
     private void SetStatus(string message)
     {
-        StatusText.Text = message;
+        LiveAnnouncer.Announce(StatusText, message);
     }
 }

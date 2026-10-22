@@ -33,6 +33,11 @@ internal static class ShellRecycleBin
             if (shf.fAnyOperationsAborted)
                 return (false, L.T("Operation was aborted."));
 
+            // SHFileOperation can report success while leaving locked items behind.
+            // Only call it done if the thing is really gone.
+            if (Directory.Exists(path) || File.Exists(path))
+                return (false, L.T("Some items could not be deleted (in use or access denied)."));
+
             return (true, null);
         }
         catch (Exception ex)

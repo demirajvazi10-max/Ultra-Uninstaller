@@ -35,7 +35,7 @@ public partial class ScanProgressWindow : Window
             : (int)Math.Round(100.0 * progress.FoldersCompleted / progress.FoldersTotal);
 
         ScanProgressBar.Value = percent;
-        StatusText.Text = L.F("Measuring {0} ({1} of {2})", progress.CurrentFolderName, progress.FoldersCompleted, progress.FoldersTotal);
+        AnnounceThrottled(L.F("Measuring {0} ({1} of {2})", progress.CurrentFolderName, progress.FoldersCompleted, progress.FoldersTotal));
     }
 
     /// <summary>
@@ -47,12 +47,31 @@ public partial class ScanProgressWindow : Window
     public void ReportProgressText(string message)
     {
         ScanProgressBar.IsIndeterminate = true;
-        StatusText.Text = message;
+        AnnounceThrottled(message);
+    }
+
+    private DateTime _lastAnnouncement = DateTime.MinValue;
+
+    /// <summary>
+    /// Progress can arrive many times a second (e.g. "Checking scheduled task 37 of 210").
+    /// The text always updates, but the screen reader is only told about it every couple
+    /// of seconds, so it reads steady progress instead of cutting itself off constantly.
+    /// </summary>
+    private void AnnounceThrottled(string message)
+    {
+        if (DateTime.UtcNow - _lastAnnouncement < TimeSpan.FromSeconds(2))
+        {
+            StatusText.Text = message;
+            return;
+        }
+
+        _lastAnnouncement = DateTime.UtcNow;
+        LiveAnnouncer.Announce(StatusText, message);
     }
 
     public void ShowCancelling()
     {
-        StatusText.Text = L.T("Cancelling scan...");
+        LiveAnnouncer.Announce(StatusText, L.T("Cancelling scan..."));
         CancelButton.IsEnabled = false;
     }
 

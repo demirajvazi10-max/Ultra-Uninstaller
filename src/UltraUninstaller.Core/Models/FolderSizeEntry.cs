@@ -15,6 +15,9 @@ public sealed class FolderSizeEntry
     /// <summary>True if the scan couldn't read some part of this folder (permissions, locked files) — size is a lower bound.</summary>
     public bool SizeIsApproximate { get; init; }
 
+    /// <summary>True for the combined "(files directly in this folder)" row - not a real subfolder.</summary>
+    public bool IsLooseFiles { get; init; }
+
     public double SizeGb => SizeBytes / 1024.0 / 1024.0 / 1024.0;
     public double SizeMb => SizeBytes / 1024.0 / 1024.0;
 }

@@ -626,39 +626,7 @@ public sealed class StartupManagerService
 
     private static async Task<(int ExitCode, string? Output)> RunProcessAsync(string fileName, string arguments, TimeSpan timeout)
     {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            using var process = Process.Start(psi);
-            if (process is null)
-                return (-1, null);
-
-            using var cts = new CancellationTokenSource(timeout);
-            try
-            {
-                await process.WaitForExitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return (-1, null);
-            }
-
-            var stdout = await process.StandardOutput.ReadToEndAsync();
-            return (process.ExitCode, stdout);
-        }
-        catch
-        {
-            return (-1, null);
-        }
+        var result = await ProcessRunner.RunAsync(fileName, arguments, timeout);
+        return result.TimedOut ? (-1, null) : (result.ExitCode, result.ExitCode == 0 ? result.StandardOutput : result.CombinedOutput);
     }
 }

@@ -249,16 +249,27 @@ public partial class DiskAnalyzerWindow : Window
         DeleteSelectedButton.IsEnabled = false;
         SetStatus(L.F("Deleting {0} to the Recycle Bin.", L.N(selected.Count, "{0} item", "{0} items")));
 
-        var outcomes = await _analyzer.DeleteToRecycleBinAsync(selected.Select(i => i.FullPath));
+        var outcomes = new List<DeleteOutcome>();
+        var folderRows = selected.Where(i => i.IsDrillable).Select(i => i.FullPath).ToList();
+        if (folderRows.Count > 0)
+            outcomes.AddRange(await _analyzer.DeleteToRecycleBinAsync(folderRows));
+
+        // The "(files directly in this folder)" row: delete just those loose files,
+        // never the folder that's being viewed.
+        foreach (var looseRow in selected.Where(i => !i.IsDrillable))
+            outcomes.AddRange(await _analyzer.DeleteLooseFilesToRecycleBinAsync(looseRow.FullPath));
 
         var succeeded = outcomes.Count(o => o.Success);
         var failed = outcomes.Where(o => !o.Success).ToList();
 
-        SetStatus(failed.Count == 0
+        var summary = failed.Count == 0
             ? L.F("{0} sent to the Recycle Bin.", L.N(succeeded, "{0} item", "{0} items"))
-            : L.F("{0} deleted, {1} failed: {2}", L.N(succeeded, "{0} item", "{0} items"), failed.Count, string.Join("; ", failed.Select(f => $"{Path.GetFileName(f.Path)} - {f.Error}"))));
+            : L.F("{0} deleted, {1} failed: {2}", L.N(succeeded, "{0} item", "{0} items"), failed.Count, string.Join("; ", failed.Select(f => $"{Path.GetFileName(f.Path)} - {f.Error}")));
 
+        // Re-scan first, then announce the result - the rescan's own "Scan complete"
+        // message used to replace it before a screen reader could read it.
         await ScanCurrentPathAsync();
+        SetStatus(summary);
     }
 
     private async Task ForceDeleteSelectedAsync()
@@ -267,6 +278,22 @@ public partial class DiskAnalyzerWindow : Window
         if (selected.Count == 0)
         {
             SetStatus(L.T("Nothing is selected. Select one or more rows first."));
+            return;
+        }
+
+        // Force delete is for stuck folders only. The loose-files row stands for the
+        // folder being viewed, and system/user folders must never be force-deleted.
+        if (selected.Any(i => !i.IsDrillable))
+        {
+            SetStatus(L.T("Force delete works on folders only. Use normal delete for the files directly in this folder."));
+            return;
+        }
+
+        var protectedRows = selected.Where(i => PathSafety.IsProtected(i.FullPath)).ToList();
+        if (protectedRows.Count > 0)
+        {
+            SetStatus(L.F("Not allowed: {0} is a Windows system folder or a main user folder, so UltraUninstaller will not force delete it.",
+                string.Join(", ", protectedRows.Select(i => i.Name))));
             return;
         }
 
@@ -293,6 +320,8 @@ public partial class DiskAnalyzerWindow : Window
         ForceDeleteSelectedButton.IsEnabled = false;
         StepLogList.Items.Clear();
 
+        var summaries = new List<string>();
+
         foreach (var item in selected)
         {
             SetStatus(L.F("Force deleting {0}...", item.Name));
@@ -307,12 +336,15 @@ public partial class DiskAnalyzerWindow : Window
                 });
             });
 
-            SetStatus(result.Success
+            var summary = result.Success
                 ? L.F("{0} was removed ({1}).", item.Name, DescribeForceLayer(result.LayerUsed))
-                : L.F("{0} could not be removed. {1}", item.Name, result.FailureReason));
+                : L.F("{0} could not be removed. {1}", item.Name, result.FailureReason);
+            summaries.Add(summary);
+            SetStatus(summary);
         }
 
         await ScanCurrentPathAsync();
+        SetStatus(string.Join(" ", summaries));
     }
 
     private static string DescribeForceLayer(ForceDeleteLayer layer) => layer switch
@@ -327,6 +359,6 @@ public partial class DiskAnalyzerWindow : Window
 
     private void SetStatus(string message)
     {
-        StatusText.Text = message;
+        LiveAnnouncer.Announce(StatusText, message);
     }
 }
