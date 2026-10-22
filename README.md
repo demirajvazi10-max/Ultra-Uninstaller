@@ -93,17 +93,27 @@ that's a judgment call it shouldn't make for you - but its context menu has
 **"Search online for information about this"**, one click to look up the item by
 name in your browser.
 
-**On disabling:** rather than writing to Windows' own internal "StartupApproved"
-registry format that Task Manager's Startup tab uses (which has no official public
-specification - only reverse-engineered documentation), UltraUninstaller uses its
-own fully self-controlled, verifiable mechanism for each source: a rename prefix for
-Registry Run values, a holding subfolder for Startup-folder shortcuts, and the
-native `schtasks`/service-start-type commands for tasks and services. Everything is
-instantly reversible the same way it was disabled. The tradeoff: Task Manager's own
-Startup tab won't necessarily show the same enabled/disabled state for Registry Run
-or Startup-folder items disabled here, since it reads its own internal format - but
-what UltraUninstaller disables reliably stays disabled, and what it reports as
-disabled is always accurate to what will actually run at your next logon.
+**On disabling:** Registry Run entries and Startup-folder shortcuts are switched on
+and off through Windows' own **StartupApproved** setting - the same switch Task
+Manager's Startup tab and Settings → Apps → Startup use - so a change made in
+UltraUninstaller shows up there too, and something disabled in Task Manager is shown
+as disabled here. Scheduled tasks are enabled/disabled with `schtasks`, and services
+are switched between Automatic and Manual (never Disabled, so anything that really
+needs them can still start them on demand). Services set to Manual by UltraUninstaller
+stay in the list, marked disabled, so they can be switched back. Everything can be
+reversed the same way it was changed.
+
+Changes take effect at the next sign-in or restart: a program that is already running
+keeps running until then. After every enable/disable the list is re-scanned and the
+result ("Done. 2 items disabled.", plus any failures) is announced last, so screen
+reader users hear the actual outcome.
+
+*Fixed in 1.1:* version 1.0 disabled Registry Run entries by renaming the registry
+value, but Windows runs every value in a Run key whatever its name - so those items
+kept starting, and an item already disabled in Task Manager could even be switched
+back on. Such renamed entries are converted automatically the next time Startup
+Manager scans (their original name is restored and they are properly switched off).
+Services switched to Manual also used to disappear from the list; they now stay.
 
 ### Registry Cleaner (Tools menu)
 

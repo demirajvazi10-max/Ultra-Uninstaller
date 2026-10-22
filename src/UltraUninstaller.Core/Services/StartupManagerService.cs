@@ -12,19 +12,29 @@ public sealed record StartupToggleOutcome(bool Success, string? Error);
 /// <summary>
 /// Scans every common place something can launch itself at boot or logon - not just
 /// the registry Run keys most basic startup managers stop at - and lets the user
-/// enable/disable each one. Every disable is fully reversible and driven entirely by
-/// UltraUninstaller's own bookkeeping (a rename prefix for registry values, a holding
-/// subfolder for Startup-folder shortcuts, native commands for tasks/services) rather
-/// than by writing to Windows' own undocumented internal state (e.g. the
-/// "StartupApproved" registry format Task Manager uses, which has no official public
-/// specification) - correctness and reversibility matter more here than mirroring
-/// Task Manager's own UI exactly.
+/// enable/disable each one.
+///
+/// Registry Run entries and Startup-folder shortcuts are enabled/disabled through the
+/// same "StartupApproved" switch Task Manager and Settings → Apps → Startup use, so a
+/// change made here shows up there too (and the other way round). Earlier versions
+/// renamed the Run value instead - but Windows runs every value in a Run key whatever
+/// its name, so that "disable" never actually stopped anything; those old renamed
+/// values are converted automatically on the next scan. Scheduled tasks use schtasks,
+/// and services are switched between Automatic and Manual, with a small record of
+/// which services UltraUninstaller itself set to Manual so they stay in the list and
+/// can be switched back.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class StartupManagerService
 {
+    /// <summary>Legacy (pre-1.1) disable marker - kept only so old entries can be recognized and converted.</summary>
     private const string DisabledValuePrefix = "UltraUninstallerDisabled_";
+
+    /// <summary>Legacy (pre-1.1) holding folder for disabled Startup-folder shortcuts - still honored and cleaned up.</summary>
     private const string DisabledShortcutFolderName = "Disabled by UltraUninstaller";
+
+    private const string StartupApprovedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved";
+    private const string OwnServiceRecordPath = @"SOFTWARE\UltraUninstaller\ServicesSetToManual";
 
     private static readonly (RegistryHive Hive, RegistryView View, RegistryScope Scope)[] RunKeyLocations =
     {
@@ -92,6 +102,11 @@ public sealed class StartupManagerService
             var subPath = scope == RegistryScope.LocalMachine32OnWow64 ? RunKeySubPathWow : RunKeySubPath64;
 
             using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+
+            // Old versions "disabled" by renaming the value, which never actually worked.
+            // Convert those now: put the real name back and switch it off properly.
+            MigrateLegacyRenamedRunValues(baseKey, subPath, scope);
+
             using var runKey = baseKey.OpenSubKey(subPath);
             if (runKey is null)
                 continue;
@@ -101,8 +116,13 @@ public sealed class StartupManagerService
                 if (runKey.GetValue(valueName) is not string rawCommand || string.IsNullOrWhiteSpace(rawCommand))
                     continue;
 
-                var isDisabled = valueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal);
-                var displayName = isDisabled ? valueName[DisabledValuePrefix.Length..] : valueName;
+                // If a legacy value couldn't be converted (e.g. no admin rights for HKLM),
+                // it is still RUNNING at every logon - so report it honestly as enabled.
+                var displayName = valueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal)
+                    ? valueName[DisabledValuePrefix.Length..]
+                    : valueName;
+                var isDisabled = !valueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal)
+                                 && IsApprovedDisabled(ApprovedHive(scope), ApprovedRunSubKey(scope), valueName);
 
                 var (exePath, _) = InstallerTypeDetector.SplitCommandLine(rawCommand);
                 var fileInfo = TryGetFileInfo(exePath);
@@ -145,21 +165,26 @@ public sealed class StartupManagerService
         if (runKey is null)
             return new StartupToggleOutcome(false, L.T("Run key not found."));
 
-        var currentValueName = item.Identifier;
-        var isCurrentlyDisabled = currentValueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal);
+        var valueName = item.Identifier;
 
-        if (enable == !isCurrentlyDisabled)
-            return new StartupToggleOutcome(true, null); // Already in the requested state.
+        // A legacy renamed value that couldn't be converted during the scan: put its real name back first.
+        if (valueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal))
+        {
+            var data = runKey.GetValue(valueName);
+            if (data is null)
+                return new StartupToggleOutcome(false, L.T("Value no longer exists (already changed elsewhere?)."));
 
-        var data = runKey.GetValue(currentValueName);
-        if (data is null)
+            var originalName = valueName[DisabledValuePrefix.Length..];
+            runKey.SetValue(originalName, data);
+            runKey.DeleteValue(valueName, throwOnMissingValue: false);
+            valueName = originalName;
+        }
+        else if (runKey.GetValue(valueName) is null)
+        {
             return new StartupToggleOutcome(false, L.T("Value no longer exists (already changed elsewhere?)."));
+        }
 
-        var newValueName = enable ? item.Name : DisabledValuePrefix + item.Name;
-
-        runKey.SetValue(newValueName, data);
-        runKey.DeleteValue(currentValueName, throwOnMissingValue: false);
-
+        SetApproved(ApprovedHive(scope), ApprovedRunSubKey(scope), valueName, enable);
         return new StartupToggleOutcome(true, null);
     }
 
@@ -176,11 +201,18 @@ public sealed class StartupManagerService
 
         foreach (var root in roots.Where(Directory.Exists).Distinct())
         {
-            // Enabled items: .lnk files directly in the Startup folder (Windows does not recurse into subfolders).
-            foreach (var shortcut in SafeGetFiles(root, "*.lnk"))
-                items.Add(BuildStartupFolderItem(shortcut, isEnabled: true));
+            var approvedHive = IsCommonStartupFolder(root) ? RegistryHive.LocalMachine : RegistryHive.CurrentUser;
 
-            // Disabled items: shortcuts we've moved into our own holding subfolder.
+            // Shortcuts directly in the Startup folder (Windows does not recurse into subfolders).
+            // Whether each one actually runs is decided by its StartupApproved switch.
+            foreach (var shortcut in SafeGetFiles(root, "*.lnk"))
+            {
+                var disabled = IsApprovedDisabled(approvedHive, "StartupFolder", Path.GetFileName(shortcut));
+                items.Add(BuildStartupFolderItem(shortcut, isEnabled: !disabled));
+            }
+
+            // Legacy (pre-1.1) disabled items: shortcuts moved into our old holding subfolder.
+            // These genuinely don't run, so they're listed as disabled and enabling moves them back.
             var disabledFolder = Path.Combine(root, DisabledShortcutFolderName);
             if (Directory.Exists(disabledFolder))
             {
@@ -224,20 +256,18 @@ public sealed class StartupManagerService
             : Path.GetDirectoryName(currentPath)!;
 
         var fileName = Path.GetFileName(currentPath);
+        var isInLegacyHoldingFolder = !string.Equals(Path.GetDirectoryName(currentPath), startupRoot, StringComparison.OrdinalIgnoreCase);
 
-        if (enable)
+        if (isInLegacyHoldingFolder)
         {
+            // Bring it back into the real Startup folder, then let StartupApproved decide.
             var destination = Path.Combine(startupRoot, fileName);
             File.Move(currentPath, destination, overwrite: false);
-        }
-        else
-        {
-            var disabledFolder = Path.Combine(startupRoot, DisabledShortcutFolderName);
-            Directory.CreateDirectory(disabledFolder);
-            var destination = Path.Combine(disabledFolder, fileName);
-            File.Move(currentPath, destination, overwrite: false);
+            TryDeleteEmptyFolder(Path.GetDirectoryName(currentPath)!);
         }
 
+        var approvedHive = IsCommonStartupFolder(startupRoot) ? RegistryHive.LocalMachine : RegistryHive.CurrentUser;
+        SetApproved(approvedHive, "StartupFolder", fileName, enable);
         return new StartupToggleOutcome(true, null);
     }
 
@@ -299,7 +329,9 @@ public sealed class StartupManagerService
         var result = await RunProcessAsync("schtasks.exe", $"/Change /TN \"{item.Identifier}\" {flag}", TimeSpan.FromSeconds(15));
         return result.ExitCode == 0
             ? new StartupToggleOutcome(true, null)
-            : new StartupToggleOutcome(false, result.Output ?? L.F("schtasks exited with code {0}.", result.ExitCode));
+            : new StartupToggleOutcome(false, string.IsNullOrWhiteSpace(result.Output)
+                ? L.F("schtasks exited with code {0}.", result.ExitCode)
+                : result.Output.Trim());
     }
 
     // ================= Auto-start Services =================
@@ -313,6 +345,8 @@ public sealed class StartupManagerService
         if (servicesKey is null)
             return items;
 
+        var ownManualRecord = ReadOwnServiceRecord(baseKey);
+
         foreach (var serviceName in servicesKey.GetSubKeyNames())
         {
             using var serviceKey = servicesKey.OpenSubKey(serviceName);
@@ -322,10 +356,15 @@ public sealed class StartupManagerService
             var start = serviceKey.GetValue("Start") as int?;
             var type = serviceKey.GetValue("Type") as int?;
 
-            // Only Win32 services (not drivers) that are set to Automatic (2) are "startup impact" candidates.
+            // Only Win32 services (not drivers) that are set to Automatic (2) are "startup impact" candidates,
+            // plus the ones UltraUninstaller itself switched to Manual (3), so they stay listed and can be switched back.
             const int SERVICE_WIN32_OWN_PROCESS = 0x10;
             const int SERVICE_WIN32_SHARE_PROCESS = 0x20;
-            if (start != 2 || type is null || (type & (SERVICE_WIN32_OWN_PROCESS | SERVICE_WIN32_SHARE_PROCESS)) == 0)
+            if (type is null || (type & (SERVICE_WIN32_OWN_PROCESS | SERVICE_WIN32_SHARE_PROCESS)) == 0)
+                continue;
+
+            var setToManualByUs = start == 3 && ownManualRecord.Contains(serviceName);
+            if (start != 2 && !setToManualByUs)
                 continue;
 
             var displayName = serviceKey.GetValue("DisplayName") as string ?? serviceName;
@@ -343,7 +382,7 @@ public sealed class StartupManagerService
                 FilePath = exePath,
                 IsSigned = fileInfo.IsSigned,
                 IsInUnusualLocation = fileInfo.IsInUnusualLocation,
-                IsEnabled = true, // by definition, since we only listed Start==2 (Automatic) entries
+                IsEnabled = start == 2,
                 Identifier = serviceName,
             });
         }
@@ -362,7 +401,121 @@ public sealed class StartupManagerService
         // Manual is the standard, safe way to stop something auto-starting while leaving it
         // able to start on demand if something else genuinely needs it.
         serviceKey.SetValue("Start", enable ? 2 : 3, RegistryValueKind.DWord);
+
+        // Remember which services we switched to Manual, so the next scan still lists them (as disabled).
+        using var recordKey = baseKey.CreateSubKey(OwnServiceRecordPath, writable: true);
+        if (enable)
+            recordKey.DeleteValue(item.Identifier, throwOnMissingValue: false);
+        else
+            recordKey.SetValue(item.Identifier, 1, RegistryValueKind.DWord);
+
         return new StartupToggleOutcome(true, null);
+    }
+
+    // ================= StartupApproved (the switch Task Manager uses) =================
+    //
+    // Each entry is a 12-byte REG_BINARY value named after the Run value (or the shortcut's
+    // file name): first byte 02 = enabled, 03 = disabled (odd = disabled in general), the
+    // last 8 bytes are the FILETIME when it was disabled. A missing value means enabled.
+
+    private static RegistryHive ApprovedHive(RegistryScope scope) =>
+        scope == RegistryScope.CurrentUser ? RegistryHive.CurrentUser : RegistryHive.LocalMachine;
+
+    private static string ApprovedRunSubKey(RegistryScope scope) =>
+        scope == RegistryScope.LocalMachine32OnWow64 ? "Run32" : "Run";
+
+    private static bool IsApprovedDisabled(RegistryHive hive, string subKey, string valueName)
+    {
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
+            using var key = baseKey.OpenSubKey($@"{StartupApprovedPath}\{subKey}");
+            return key?.GetValue(valueName) is byte[] { Length: > 0 } data && (data[0] & 1) == 1;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void SetApproved(RegistryHive hive, string subKey, string valueName, bool enable)
+    {
+        var data = new byte[12];
+        if (enable)
+        {
+            data[0] = 0x02;
+        }
+        else
+        {
+            data[0] = 0x03;
+            BitConverter.GetBytes(DateTime.UtcNow.ToFileTimeUtc()).CopyTo(data, 4);
+        }
+
+        using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
+        using var key = baseKey.CreateSubKey($@"{StartupApprovedPath}\{subKey}", writable: true);
+        key.SetValue(valueName, data, RegistryValueKind.Binary);
+    }
+
+    private static void MigrateLegacyRenamedRunValues(RegistryKey baseKey, string subPath, RegistryScope scope)
+    {
+        try
+        {
+            using var runKey = baseKey.OpenSubKey(subPath, writable: true);
+            if (runKey is null)
+                return;
+
+            foreach (var legacyName in runKey.GetValueNames().Where(n => n.StartsWith(DisabledValuePrefix, StringComparison.Ordinal)))
+            {
+                var originalName = legacyName[DisabledValuePrefix.Length..];
+                var data = runKey.GetValue(legacyName);
+                if (data is null || string.IsNullOrEmpty(originalName))
+                    continue;
+
+                if (runKey.GetValue(originalName) is null)
+                    runKey.SetValue(originalName, data, runKey.GetValueKind(legacyName));
+
+                runKey.DeleteValue(legacyName, throwOnMissingValue: false);
+                SetApproved(ApprovedHive(scope), ApprovedRunSubKey(scope), originalName, enable: false);
+            }
+        }
+        catch
+        {
+            // No write access (e.g. HKLM without admin rights) - the entry is listed as enabled
+            // (which is the truth) and gets converted when the user toggles it.
+        }
+    }
+
+    private static bool IsCommonStartupFolder(string folder) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(folder),
+                      Path.TrimEndingDirectorySeparator(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup)),
+                      StringComparison.OrdinalIgnoreCase);
+
+    private static void TryDeleteEmptyFolder(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                Directory.Delete(folder);
+        }
+        catch
+        {
+            // Cosmetic only.
+        }
+    }
+
+    private static HashSet<string> ReadOwnServiceRecord(RegistryKey localMachine)
+    {
+        try
+        {
+            using var key = localMachine.OpenSubKey(OwnServiceRecordPath);
+            return key is null
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(key.GetValueNames(), StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     // ================= Shared helpers =================

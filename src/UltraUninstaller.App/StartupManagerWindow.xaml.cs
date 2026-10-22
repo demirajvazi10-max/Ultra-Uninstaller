@@ -182,19 +182,42 @@ public partial class StartupManagerWindow : Window
         EnableSelectedButton.IsEnabled = false;
         StepLogList.Items.Clear();
 
+        var succeeded = 0;
+        var failures = new List<string>();
+
         foreach (var item in selected)
         {
             SetStatus(enable ? L.F("Enabling {0}...", item.Name) : L.F("Disabling {0}...", item.Name));
 
             var outcome = await _startupManager.SetEnabledAsync(item.Item, enable);
 
-            StepLogList.Items.Add(outcome.Success
-                ? $"{item.Name}: {(enable ? L.T("enabled") : L.T("disabled"))}"
-                : L.F("{0}: FAILED - {1}", item.Name, outcome.Error));
+            if (outcome.Success)
+            {
+                succeeded++;
+                StepLogList.Items.Add($"{item.Name}: {(enable ? L.T("enabled") : L.T("disabled"))}");
+            }
+            else
+            {
+                var line = L.F("{0}: FAILED - {1}", item.Name, outcome.Error);
+                failures.Add(line);
+                StepLogList.Items.Add(line);
+            }
         }
 
-        SetStatus(L.T("Done."));
+        // Re-scan so the list shows the real state, then announce the result LAST -
+        // otherwise the rescan's "Found N startup items" message would be the only thing
+        // the screen reader says, and it would sound as if nothing had happened.
         await ScanAsync();
+
+        var summary = enable
+            ? L.F("Done. {0} enabled.", L.N(succeeded, "{0} item", "{0} items"))
+            : L.F("Done. {0} disabled.", L.N(succeeded, "{0} item", "{0} items"));
+        if (failures.Count > 0)
+            summary += " " + string.Join(" ", failures);
+        if (succeeded > 0)
+            summary += " " + L.T("The change takes effect the next time you sign in or restart Windows; programs that are already running keep running until then.");
+
+        SetStatus(summary);
     }
 
     private void SetStatus(string message)
