@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -35,7 +36,7 @@ public partial class DiskAnalyzerWindow : Window
         }
         else
         {
-            SetStatus($"Ready. Path is set to {PathBox.Text}. Press Scan or Enter to begin.");
+            SetStatus(L.F("Ready. Path is set to {0}. Press Scan or Enter to begin.", PathBox.Text));
         }
     }
 
@@ -66,7 +67,7 @@ public partial class DiskAnalyzerWindow : Window
         var parent = Directory.GetParent(current);
         if (parent is null)
         {
-            SetStatus("Already at the top of the drive.");
+            SetStatus(L.T("Already at the top of the drive."));
             return;
         }
 
@@ -146,7 +147,7 @@ public partial class DiskAnalyzerWindow : Window
 
         if (!Directory.Exists(path))
         {
-            SetStatus($"Folder not found: {path}");
+            SetStatus(L.F("Folder not found: {0}", path));
             return;
         }
 
@@ -154,7 +155,7 @@ public partial class DiskAnalyzerWindow : Window
         ScanButton.IsEnabled = false;
         UpButton.IsEnabled = false;
         _items.Clear();
-        SetStatus($"Scanning {path}...");
+        SetStatus(L.F("Scanning {0}...", path));
 
         var progressWindow = new ScanProgressWindow { Owner = this };
 
@@ -199,20 +200,20 @@ public partial class DiskAnalyzerWindow : Window
                 _items.Add(new FolderSizeItem(entry));
 
             SetStatus(results.Count == 0
-                ? $"No subfolders found in {path}."
-                : $"Scan complete. {results.Count} item{(results.Count == 1 ? "" : "s")} found in {path}, largest first.");
+                ? L.F("No subfolders found in {0}.", path)
+                : L.F("Scan complete. {0} found in {1}, largest first.", L.N(results.Count, "{0} item", "{0} items"), path));
         }
         catch (OperationCanceledException)
         {
-            SetStatus("Scan cancelled.");
+            SetStatus(L.T("Scan cancelled."));
         }
         catch (UnauthorizedAccessException)
         {
-            SetStatus($"Access denied while scanning {path}. Try running UltraUninstaller as administrator.");
+            SetStatus(L.F("Access denied while scanning {0}. Try running UltraUninstaller as administrator.", path));
         }
         catch (Exception ex)
         {
-            SetStatus($"Scan failed: {ex.Message}");
+            SetStatus(L.F("Scan failed: {0}", ex.Message));
         }
         finally
         {
@@ -227,26 +228,26 @@ public partial class DiskAnalyzerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<FolderSizeItem>().ToList();
         if (selected.Count == 0)
         {
-            SetStatus("Nothing is selected. Select one or more rows first.");
+            SetStatus(L.T("Nothing is selected. Select one or more rows first."));
             return;
         }
 
         var totalGb = selected.Sum(i => i.SizeGb);
         var names = string.Join(", ", selected.Select(i => i.Name));
         var confirm = MessageBox.Show(
-            $"Send {selected.Count} item(s) to the Recycle Bin, totaling about {totalGb:0.##} GB?\n\n{names}",
-            "Confirm delete",
+            L.F("Send {0} to the Recycle Bin, totaling about {1:0.##} GB?", L.N(selected.Count, "{0} item", "{0} items"), totalGb) + "\n\n" + names,
+            L.T("Confirm delete"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Delete cancelled.");
+            SetStatus(L.T("Delete cancelled."));
             return;
         }
 
         DeleteSelectedButton.IsEnabled = false;
-        SetStatus($"Deleting {selected.Count} item(s) to the Recycle Bin.");
+        SetStatus(L.F("Deleting {0} to the Recycle Bin.", L.N(selected.Count, "{0} item", "{0} items")));
 
         var outcomes = await _analyzer.DeleteToRecycleBinAsync(selected.Select(i => i.FullPath));
 
@@ -254,8 +255,8 @@ public partial class DiskAnalyzerWindow : Window
         var failed = outcomes.Where(o => !o.Success).ToList();
 
         SetStatus(failed.Count == 0
-            ? $"{succeeded} item(s) sent to the Recycle Bin."
-            : $"{succeeded} item(s) deleted, {failed.Count} failed: {string.Join("; ", failed.Select(f => $"{Path.GetFileName(f.Path)} - {f.Error}"))}");
+            ? L.F("{0} sent to the Recycle Bin.", L.N(succeeded, "{0} item", "{0} items"))
+            : L.F("{0} deleted, {1} failed: {2}", L.N(succeeded, "{0} item", "{0} items"), failed.Count, string.Join("; ", failed.Select(f => $"{Path.GetFileName(f.Path)} - {f.Error}"))));
 
         await ScanCurrentPathAsync();
     }
@@ -265,26 +266,26 @@ public partial class DiskAnalyzerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<FolderSizeItem>().ToList();
         if (selected.Count == 0)
         {
-            SetStatus("Nothing is selected. Select one or more rows first.");
+            SetStatus(L.T("Nothing is selected. Select one or more rows first."));
             return;
         }
 
         var names = string.Join(", ", selected.Select(i => i.Name));
         var confirm = MessageBox.Show(
-            $"Force delete {selected.Count} item(s)?\n\n{names}\n\n" +
-            "This tries progressively stronger methods for folders that a normal " +
-            "delete can't remove - including detaching orphaned Windows image mounts " +
-            "(WinPE/WIM/VHD), resetting ownership and permissions, a permanent delete " +
-            "that bypasses the Recycle Bin, and as a last resort, scheduling deletion " +
-            "for your next restart. This can take a while and some steps need " +
-            "administrator rights.",
-            "Confirm force delete",
+            L.F("Force delete {0}?", L.N(selected.Count, "{0} item", "{0} items")) + "\n\n" + names + "\n\n" +
+            L.T("This tries progressively stronger methods for folders that a normal " +
+                "delete can't remove - including detaching orphaned Windows image mounts " +
+                "(WinPE/WIM/VHD), resetting ownership and permissions, a permanent delete " +
+                "that bypasses the Recycle Bin, and as a last resort, scheduling deletion " +
+                "for your next restart. This can take a while and some steps need " +
+                "administrator rights."),
+            L.T("Confirm force delete"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Force delete cancelled.");
+            SetStatus(L.T("Force delete cancelled."));
             return;
         }
 
@@ -294,7 +295,7 @@ public partial class DiskAnalyzerWindow : Window
 
         foreach (var item in selected)
         {
-            SetStatus($"Force deleting {item.Name}...");
+            SetStatus(L.F("Force deleting {0}...", item.Name));
 
             var result = await _forceDelete.ForceDeleteAsync(item.FullPath, step =>
             {
@@ -307,8 +308,8 @@ public partial class DiskAnalyzerWindow : Window
             });
 
             SetStatus(result.Success
-                ? $"{item.Name} was removed ({DescribeForceLayer(result.LayerUsed)})."
-                : $"{item.Name} could not be removed. {result.FailureReason}");
+                ? L.F("{0} was removed ({1}).", item.Name, DescribeForceLayer(result.LayerUsed))
+                : L.F("{0} could not be removed. {1}", item.Name, result.FailureReason));
         }
 
         await ScanCurrentPathAsync();
@@ -316,12 +317,12 @@ public partial class DiskAnalyzerWindow : Window
 
     private static string DescribeForceLayer(ForceDeleteLayer layer) => layer switch
     {
-        ForceDeleteLayer.RecycleBin => "normal delete",
-        ForceDeleteLayer.ImageMountCleanup => "after clearing an orphaned image mount",
-        ForceDeleteLayer.OwnershipReset => "after resetting ownership and permissions",
-        ForceDeleteLayer.PermanentDelete => "permanent delete",
-        ForceDeleteLayer.ScheduledOnReboot => "scheduled for deletion on your next restart",
-        _ => "an unknown method",
+        ForceDeleteLayer.RecycleBin => L.T("normal delete"),
+        ForceDeleteLayer.ImageMountCleanup => L.T("after clearing an orphaned image mount"),
+        ForceDeleteLayer.OwnershipReset => L.T("after resetting ownership and permissions"),
+        ForceDeleteLayer.PermanentDelete => L.T("permanent delete"),
+        ForceDeleteLayer.ScheduledOnReboot => L.T("scheduled for deletion on your next restart"),
+        _ => L.T("an unknown method"),
     };
 
     private void SetStatus(string message)

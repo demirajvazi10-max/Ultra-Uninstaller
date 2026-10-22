@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -53,15 +54,15 @@ public sealed class RegistryCleanerService
     /// <summary>Known "living off the land" abuse patterns: (label, check). Deliberately a short, high-confidence list - not an attempt at a full malware signature database.</summary>
     private static readonly (string Label, Func<string, bool> IsMatch)[] SuspiciousCommandPatterns =
     {
-        ("an encoded/obfuscated PowerShell command", c => c.Contains("powershell", StringComparison.OrdinalIgnoreCase) &&
+        (L.T("an encoded/obfuscated PowerShell command"), c => c.Contains("powershell", StringComparison.OrdinalIgnoreCase) &&
             (c.Contains("-enc", StringComparison.OrdinalIgnoreCase) || c.Contains("-encodedcommand", StringComparison.OrdinalIgnoreCase))),
-        ("mshta.exe fetching content from a web address", c => c.Contains("mshta", StringComparison.OrdinalIgnoreCase) &&
+        (L.T("mshta.exe fetching content from a web address"), c => c.Contains("mshta", StringComparison.OrdinalIgnoreCase) &&
             (c.Contains("http://", StringComparison.OrdinalIgnoreCase) || c.Contains("https://", StringComparison.OrdinalIgnoreCase))),
-        ("regsvr32.exe registering a component from a web address", c => c.Contains("regsvr32", StringComparison.OrdinalIgnoreCase) &&
+        (L.T("regsvr32.exe registering a component from a web address"), c => c.Contains("regsvr32", StringComparison.OrdinalIgnoreCase) &&
             c.Contains("/i:http", StringComparison.OrdinalIgnoreCase)),
-        ("certutil.exe used to download or decode a file (a known trick to fetch payloads)", c => c.Contains("certutil", StringComparison.OrdinalIgnoreCase) &&
+        (L.T("certutil.exe used to download or decode a file (a known trick to fetch payloads)"), c => c.Contains("certutil", StringComparison.OrdinalIgnoreCase) &&
             (c.Contains("-urlcache", StringComparison.OrdinalIgnoreCase) || c.Contains("-decode", StringComparison.OrdinalIgnoreCase))),
-        ("rundll32.exe pointed at a web address instead of a local file", c => c.Contains("rundll32", StringComparison.OrdinalIgnoreCase) &&
+        (L.T("rundll32.exe pointed at a web address instead of a local file"), c => c.Contains("rundll32", StringComparison.OrdinalIgnoreCase) &&
             (c.Contains("http://", StringComparison.OrdinalIgnoreCase) || c.Contains("https://", StringComparison.OrdinalIgnoreCase))),
     };
 
@@ -75,20 +76,20 @@ public sealed class RegistryCleanerService
     {
         return Task.Run(() =>
         {
-            progress?.Report("Checking installed programs for orphaned uninstall entries");
+            progress?.Report(L.T("Checking installed programs for orphaned uninstall entries"));
             var issues = new List<RegistryIssue>();
             issues.AddRange(ScanOrphanedUninstallEntries());
             cancellationToken.ThrowIfCancellationRequested();
 
-            progress?.Report("Checking startup registry entries");
+            progress?.Report(L.T("Checking startup registry entries"));
             issues.AddRange(ScanOrphanedStartupEntries());
             cancellationToken.ThrowIfCancellationRequested();
 
-            progress?.Report("Checking for known system hijack techniques (Image File Execution Options, Winlogon, AppInit_DLLs)");
+            progress?.Report(L.T("Checking for known system hijack techniques (Image File Execution Options, Winlogon, AppInit_DLLs)"));
             issues.AddRange(ScanSecurityReviewIssues());
             cancellationToken.ThrowIfCancellationRequested();
 
-            progress?.Report("Checking startup commands for known suspicious patterns");
+            progress?.Report(L.T("Checking startup commands for known suspicious patterns"));
             issues.AddRange(ScanSuspiciousStartupCommands());
 
             return (IReadOnlyList<RegistryIssue>)issues
@@ -113,7 +114,7 @@ public sealed class RegistryCleanerService
             using var parentKey = baseKey.OpenSubKey(issue.ParentKeyPath, writable: true);
 
             if (parentKey is null)
-                return new RegistryRemoveOutcome(false, "Registry key no longer exists (already removed?).", backupOutcome.Path);
+                return new RegistryRemoveOutcome(false, L.T("Registry key no longer exists (already removed?)."), backupOutcome.Path);
 
             if (issue.ValueNameToDelete is not null && issue.CorrectedValueData is not null)
             {
@@ -135,7 +136,7 @@ public sealed class RegistryCleanerService
             }
             else
             {
-                return new RegistryRemoveOutcome(false, "Issue is missing the information needed to remove it.", backupOutcome.Path);
+                return new RegistryRemoveOutcome(false, L.T("Issue is missing the information needed to remove it."), backupOutcome.Path);
             }
 
             return new RegistryRemoveOutcome(true, null, backupOutcome.Path);
@@ -187,7 +188,7 @@ public sealed class RegistryCleanerService
             {
                 Category = RegistryIssueCategory.OrphanedUninstallEntry,
                 DisplayName = app.DisplayName,
-                Reason = $"Its uninstaller no longer exists on disk: {exePath}",
+                Reason = L.F("Its uninstaller no longer exists on disk: {0}", exePath),
                 Scope = app.Scope,
                 FullRegistryPath = app.FullRegistryPath,
                 ParentKeyPath = parentPath,
@@ -274,7 +275,7 @@ public sealed class RegistryCleanerService
                 {
                     Category = RegistryIssueCategory.OrphanedStartupEntry,
                     DisplayName = valueName,
-                    Reason = $"Startup program no longer exists: {exePath}",
+                    Reason = L.F("Startup program no longer exists: {0}", exePath),
                     Scope = scope,
                     FullRegistryPath = $@"{hiveName}\{subPath}",
                     ParentKeyPath = subPath,
@@ -315,7 +316,7 @@ public sealed class RegistryCleanerService
                     {
                         Category = RegistryIssueCategory.SecurityReview,
                         DisplayName = $"Image File Execution Options: {exeName}",
-                        Reason = $"Windows will launch \"{debugger}\" instead of {exeName} whenever it's run. This exact technique (Debugger redirection) is a well-known way to hijack system tools; legitimate software almost never uses it. Review before removing.",
+                        Reason = L.F("Windows will launch \"{0}\" instead of {1} whenever it's run. This exact technique (Debugger redirection) is a well-known way to hijack system tools; legitimate software almost never uses it. Review before removing.", debugger, exeName),
                         Scope = RegistryScope.LocalMachine64,
                         FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{IfeoSubPath}\{exeName}",
                         ParentKeyPath = $@"{IfeoSubPath}\{exeName}",
@@ -336,7 +337,7 @@ public sealed class RegistryCleanerService
                 {
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "Winlogon Shell",
-                    Reason = $"Windows is set to launch \"{shell}\" as your desktop shell instead of the normal explorer.exe. This is a classic technique for replacing or hijacking the desktop. Review before resetting.",
+                    Reason = L.F("Windows is set to launch \"{0}\" as your desktop shell instead of the normal explorer.exe. This is a classic technique for replacing or hijacking the desktop. Review before resetting.", shell),
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WinlogonSubPath}",
                     ParentKeyPath = WinlogonSubPath,
@@ -352,7 +353,7 @@ public sealed class RegistryCleanerService
                 {
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "Winlogon Userinit",
-                    Reason = $"Windows runs \"{userinit}\" at logon instead of just the normal userinit.exe. Anything appended here runs with your logon - a well-known persistence technique. Review before resetting.",
+                    Reason = L.F("Windows runs \"{0}\" at logon instead of just the normal userinit.exe. Anything appended here runs with your logon - a well-known persistence technique. Review before resetting.", userinit),
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WinlogonSubPath}",
                     ParentKeyPath = WinlogonSubPath,
@@ -373,7 +374,7 @@ public sealed class RegistryCleanerService
                 {
                     Category = RegistryIssueCategory.SecurityReview,
                     DisplayName = "AppInit_DLLs",
-                    Reason = $"\"{appInitDlls}\" is set to load into nearly every program that starts on this system. This mechanism is deprecated and almost never used legitimately today - it's a classic DLL injection technique. Review before clearing.",
+                    Reason = L.F("\"{0}\" is set to load into nearly every program that starts on this system. This mechanism is deprecated and almost never used legitimately today - it's a classic DLL injection technique. Review before clearing.", appInitDlls),
                     Scope = RegistryScope.LocalMachine64,
                     FullRegistryPath = $@"HKEY_LOCAL_MACHINE\{WindowsNtSubPath}",
                     ParentKeyPath = WindowsNtSubPath,
@@ -421,7 +422,7 @@ public sealed class RegistryCleanerService
                 {
                     Category = RegistryIssueCategory.SuspiciousStartupCommand,
                     DisplayName = valueName,
-                    Reason = $"This startup entry uses {match.Label}: {rawCommand}",
+                    Reason = L.F("This startup entry uses {0}: {1}", match.Label, rawCommand),
                     Scope = scope,
                     FullRegistryPath = $@"{hiveName}\{subPath}",
                     ParentKeyPath = subPath,

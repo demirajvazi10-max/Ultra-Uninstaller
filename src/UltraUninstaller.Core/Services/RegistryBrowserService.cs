@@ -3,6 +3,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Win32;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -68,13 +69,13 @@ public sealed class RegistryBrowserService
     public (IReadOnlyList<RegistryNode> SubKeys, IReadOnlyList<RegistryNode> Values) ListChildren(string fullPath)
     {
         if (!TryParsePath(fullPath, out var hive, out var subPath))
-            throw new ArgumentException($"Not a recognized registry path: {fullPath}");
+            throw new ArgumentException(L.F("Not a recognized registry path: {0}", fullPath));
 
         using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
         using var key = string.IsNullOrEmpty(subPath) ? baseKey : baseKey.OpenSubKey(subPath);
 
         if (key is null)
-            throw new IOException($"Registry path not found or not accessible: {fullPath}");
+            throw new IOException(L.F("Registry path not found or not accessible: {0}", fullPath));
 
         var subKeys = new List<RegistryNode>();
         foreach (var name in key.GetSubKeyNames())
@@ -145,13 +146,13 @@ public sealed class RegistryBrowserService
         try
         {
             if (!TryParsePath(parentPath, out var hive, out var subPath))
-                return new RegistryDeleteOutcome(false, "Could not parse the registry path.", backupOutcome.Path);
+                return new RegistryDeleteOutcome(false, L.T("Could not parse the registry path."), backupOutcome.Path);
 
             using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
             using var parentKey = string.IsNullOrEmpty(subPath) ? baseKey : baseKey.OpenSubKey(subPath, writable: true);
 
             if (parentKey is null)
-                return new RegistryDeleteOutcome(false, "Parent key no longer exists.", backupOutcome.Path);
+                return new RegistryDeleteOutcome(false, L.T("Parent key no longer exists."), backupOutcome.Path);
 
             parentKey.DeleteSubKeyTree(subKeyName, throwOnMissingSubKey: false);
             return new RegistryDeleteOutcome(true, null, backupOutcome.Path);
@@ -170,13 +171,13 @@ public sealed class RegistryBrowserService
         try
         {
             if (!TryParsePath(parentPath, out var hive, out var subPath))
-                return new RegistryDeleteOutcome(false, "Could not parse the registry path.", backupOutcome.Path);
+                return new RegistryDeleteOutcome(false, L.T("Could not parse the registry path."), backupOutcome.Path);
 
             using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
             using var parentKey = string.IsNullOrEmpty(subPath) ? baseKey : baseKey.OpenSubKey(subPath, writable: true);
 
             if (parentKey is null)
-                return new RegistryDeleteOutcome(false, "Parent key no longer exists.", backupOutcome.Path);
+                return new RegistryDeleteOutcome(false, L.T("Parent key no longer exists."), backupOutcome.Path);
 
             var actualValueName = valueName == "(Default)" ? string.Empty : valueName;
             parentKey.DeleteValue(actualValueName, throwOnMissingValue: false);
@@ -204,13 +205,13 @@ public sealed class RegistryBrowserService
         try
         {
             if (!TryParsePath(parentPath, out var hive, out var subPath))
-                return new RegistryDeleteOutcome(false, "Could not parse the registry path.", null);
+                return new RegistryDeleteOutcome(false, L.T("Could not parse the registry path."), null);
 
             using var baseKey = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
             using var parentKey = string.IsNullOrEmpty(subPath) ? baseKey : baseKey.OpenSubKey(subPath, writable: true);
 
             if (parentKey is null)
-                return new RegistryDeleteOutcome(false, "Parent key no longer exists.", null);
+                return new RegistryDeleteOutcome(false, L.T("Parent key no longer exists."), null);
 
             using (var targetKey = parentKey.OpenSubKey(subKeyName, RegistryKeyPermissionCheck.ReadWriteSubTree, RegistryRights.ChangePermissions))
             {

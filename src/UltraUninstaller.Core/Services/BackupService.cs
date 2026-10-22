@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -48,14 +49,14 @@ public sealed class BackupService
 
             using var process = Process.Start(psi);
             if (process is null)
-                return new BackupOutcome(false, null, "Could not start reg.exe.");
+                return new BackupOutcome(false, null, L.T("Could not start reg.exe."));
 
             await process.WaitForExitAsync();
 
             if (process.ExitCode != 0)
             {
                 var error = await process.StandardError.ReadToEndAsync();
-                return new BackupOutcome(false, null, string.IsNullOrWhiteSpace(error) ? "reg.exe export failed." : error);
+                return new BackupOutcome(false, null, string.IsNullOrWhiteSpace(error) ? L.T("reg.exe export failed.") : error);
             }
 
             return new BackupOutcome(true, fullFilePath, null);
@@ -77,13 +78,13 @@ public sealed class BackupService
         try
         {
             if (!Directory.Exists(folderPath))
-                return new BackupOutcome(true, null, "Folder did not exist, nothing to back up.");
+                return new BackupOutcome(true, null, L.T("Folder did not exist, nothing to back up."));
 
             var size = await Task.Run(() => GetDirectorySize(folderPath));
             if (size > maxSizeBytes)
             {
                 return new BackupOutcome(false, null,
-                    $"Folder is larger than the {maxSizeBytes / 1_000_000} MB safety limit for automatic backup; a System Restore point is relied on instead.");
+                    L.F("Folder is larger than the {0} MB safety limit for automatic backup; a System Restore point is relied on instead.", maxSizeBytes / 1_000_000));
             }
 
             Directory.CreateDirectory(_backupRootFolder);
@@ -123,7 +124,7 @@ public sealed class BackupService
 
             using var process = Process.Start(psi);
             if (process is null)
-                return new BackupOutcome(false, null, "Could not start PowerShell.");
+                return new BackupOutcome(false, null, L.T("Could not start PowerShell."));
 
             await process.WaitForExitAsync();
 
@@ -132,11 +133,11 @@ public sealed class BackupService
                 var error = await process.StandardError.ReadToEndAsync();
                 return new BackupOutcome(false, null,
                     string.IsNullOrWhiteSpace(error)
-                        ? "Restore point could not be created (System Protection may be off, or one was already made recently)."
+                        ? L.T("Restore point could not be created (System Protection may be off, or one was already made recently).")
                         : error);
             }
 
-            return new BackupOutcome(true, null, "Restore point created.");
+            return new BackupOutcome(true, null, L.T("Restore point created."));
         }
         catch (Exception ex)
         {

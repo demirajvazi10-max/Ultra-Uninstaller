@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -27,10 +28,10 @@ internal static class ShellRecycleBin
             var result = SHFileOperation(ref shf);
 
             if (result != 0)
-                return (false, $"Shell delete failed with code {result}.");
+                return (false, L.F("Shell delete failed with code {0}.", result));
 
             if (shf.fAnyOperationsAborted)
-                return (false, "Operation was aborted.");
+                return (false, L.T("Operation was aborted."));
 
             return (true, null);
         }
@@ -85,7 +86,7 @@ internal static class ShellRecycleBin
             if (result == 0 || result == RecycleBinAlreadyEmpty)
                 return (true, null);
 
-            return (false, $"Emptying the Recycle Bin failed with code {result}.");
+            return (false, L.F("Emptying the Recycle Bin failed with code {0}.", result));
         }
         catch (Exception ex)
         {

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -39,18 +40,18 @@ internal static class RebootDeleteScheduler
                 foreach (var file in Directory.GetFiles(path))
                 {
                     if (!ScheduleSingle(file))
-                        return (false, scheduled, $"Could not schedule {file} (Win32 error {Marshal.GetLastWin32Error()}).");
+                        return (false, scheduled, L.F("Could not schedule {0} (Win32 error {1}).", file, Marshal.GetLastWin32Error()));
                     scheduled++;
                 }
 
                 if (!ScheduleSingle(path))
-                    return (false, scheduled, $"Could not schedule folder {path} itself (Win32 error {Marshal.GetLastWin32Error()}).");
+                    return (false, scheduled, L.F("Could not schedule folder {0} itself (Win32 error {1}).", path, Marshal.GetLastWin32Error()));
                 scheduled++;
             }
             else if (File.Exists(path))
             {
                 if (!ScheduleSingle(path))
-                    return (false, scheduled, $"Could not schedule {path} (Win32 error {Marshal.GetLastWin32Error()}).");
+                    return (false, scheduled, L.F("Could not schedule {0} (Win32 error {1}).", path, Marshal.GetLastWin32Error()));
                 scheduled++;
             }
 

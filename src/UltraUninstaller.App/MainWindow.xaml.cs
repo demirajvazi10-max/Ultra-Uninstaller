@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         LoadAllApps();
         SyncShellIntegrationMenuState();
+        SyncLanguageMenuState();
 
         // Right-click on an unselected row should select just that row (like Explorer),
         // so the context menu always acts on the item under the mouse pointer.
@@ -57,7 +59,7 @@ public partial class MainWindow : Window
     {
         var query = SearchBox.Text?.Trim() ?? string.Empty;
 
-        SetStatus(string.IsNullOrEmpty(query) ? "Loading all installed programs." : $"Searching for {query}.");
+        SetStatus(string.IsNullOrEmpty(query) ? L.T("Loading all installed programs.") : L.F("Searching for {0}.", query));
 
         var results = string.IsNullOrEmpty(query)
             ? _scanner.ScanInstalledApps()
@@ -65,15 +67,15 @@ public partial class MainWindow : Window
 
         AppListView.ItemsSource = results.Select(a => new InstalledAppListItem(a)).ToList();
 
-        SetStatus($"Found {results.Count} program{(results.Count == 1 ? "" : "s")}.");
+        SetStatus(L.N(results.Count, "Found {0} program.", "Found {0} programs."));
     }
 
     private void LoadAllApps()
     {
-        SetStatus("Loading installed programs.");
+        SetStatus(L.T("Loading installed programs."));
         var results = _scanner.ScanInstalledApps();
         AppListView.ItemsSource = results.Select(a => new InstalledAppListItem(a)).ToList();
-        SetStatus($"{results.Count} installed programs loaded.");
+        SetStatus(L.N(results.Count, "{0} installed program loaded.", "{0} installed programs loaded."));
     }
 
     private List<InstalledAppListItem> GetSelectedApps() =>
@@ -95,7 +97,7 @@ public partial class MainWindow : Window
         var selected = GetSelectedApps();
         if (selected.Count == 0)
         {
-            SetStatus("No program selected.");
+            SetStatus(L.T("No program selected."));
             return;
         }
 
@@ -107,7 +109,7 @@ public partial class MainWindow : Window
         var selected = GetSelectedApps();
         if (selected.Count == 0)
         {
-            SetStatus("No program selected.");
+            SetStatus(L.T("No program selected."));
             return;
         }
 
@@ -122,25 +124,25 @@ public partial class MainWindow : Window
         var selected = GetSelectedApps();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one program to open its install folder.");
+            SetStatus(L.T("Select exactly one program to open its install folder."));
             return;
         }
 
         var folder = selected[0].InstallLocation;
         if (string.IsNullOrWhiteSpace(folder) || !System.IO.Directory.Exists(folder))
         {
-            SetStatus($"Install folder is not known or no longer exists for {selected[0].DisplayName}.");
+            SetStatus(L.F("Install folder is not known or no longer exists for {0}.", selected[0].DisplayName));
             return;
         }
 
         try
         {
             Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
-            SetStatus($"Opened install folder for {selected[0].DisplayName}.");
+            SetStatus(L.F("Opened install folder for {0}.", selected[0].DisplayName));
         }
         catch (Exception ex)
         {
-            SetStatus($"Could not open folder: {ex.Message}");
+            SetStatus(L.F("Could not open folder: {0}", ex.Message));
         }
     }
 
@@ -149,7 +151,7 @@ public partial class MainWindow : Window
         var selected = GetSelectedApps();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one program to copy its uninstall string.");
+            SetStatus(L.T("Select exactly one program to copy its uninstall string."));
             return;
         }
 
@@ -158,12 +160,12 @@ public partial class MainWindow : Window
 
         if (string.IsNullOrWhiteSpace(value))
         {
-            SetStatus($"{app.DisplayName} has no uninstall string in the registry.");
+            SetStatus(L.F("{0} has no uninstall string in the registry.", app.DisplayName));
             return;
         }
 
         Clipboard.SetText(value);
-        SetStatus($"Copied uninstall string for {app.DisplayName} to the clipboard.");
+        SetStatus(L.F("Copied uninstall string for {0} to the clipboard.", app.DisplayName));
     }
 
     private void ContextShowDetails_Click(object sender, RoutedEventArgs e)
@@ -171,25 +173,27 @@ public partial class MainWindow : Window
         var selected = GetSelectedApps();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one program to show its details.");
+            SetStatus(L.T("Select exactly one program to show its details."));
             return;
         }
 
         var app = selected[0].App;
+        var unknown = L.T("(unknown)");
+        var none = L.T("(none)");
         var details = string.Join(Environment.NewLine, new[]
         {
-            $"Name: {app.DisplayName}",
-            $"Version: {app.DisplayVersion ?? "(unknown)"}",
-            $"Publisher: {app.Publisher ?? "(unknown)"}",
-            $"Install location: {app.InstallLocation ?? "(unknown)"}",
-            $"Estimated size: {(app.EstimatedSizeKb is long kb ? $"{kb / 1024.0:0.#} MB" : "(unknown)")}",
-            $"Install date: {app.InstallDate ?? "(unknown)"}",
-            $"Uninstall string: {app.UninstallString ?? "(none)"}",
-            $"Quiet uninstall string: {app.QuietUninstallString ?? "(none)"}",
-            $"Registry path: {app.FullRegistryPath}",
+            L.F("Name: {0}", app.DisplayName),
+            L.F("Version: {0}", app.DisplayVersion ?? unknown),
+            L.F("Publisher: {0}", app.Publisher ?? unknown),
+            L.F("Install location: {0}", app.InstallLocation ?? unknown),
+            L.F("Estimated size: {0}", app.EstimatedSizeKb is long kb ? string.Format(L.Culture, "{0:0.#} MB", kb / 1024.0) : unknown),
+            L.F("Install date: {0}", app.InstallDate ?? unknown),
+            L.F("Uninstall string: {0}", app.UninstallString ?? none),
+            L.F("Quiet uninstall string: {0}", app.QuietUninstallString ?? none),
+            L.F("Registry path: {0}", app.FullRegistryPath),
         });
 
-        MessageBox.Show(details, $"Details - {app.DisplayName}", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(details, L.F("Details - {0}", app.DisplayName), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // --- File menu handlers ---------------------------------------------------------
@@ -198,9 +202,9 @@ public partial class MainWindow : Window
     {
         MessageBox.Show(
             "UltraUninstaller\n" +
-            "Part of the Ultra Creative Suite, by Demir Ajvazi.\n\n" +
-            "An accessible Windows uninstaller and cleaner, built screen-reader-first.",
-            "About UltraUninstaller",
+            L.T("Part of the Ultra Creative Suite, by Demir Ajvazi.") + "\n\n" +
+            L.T("An accessible Windows uninstaller and cleaner, built screen-reader-first."),
+            L.T("About UltraUninstaller"),
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -249,24 +253,24 @@ public partial class MainWindow : Window
             if (_shellIntegration.IsRegistered())
             {
                 _shellIntegration.Unregister();
-                SetStatus("Removed 'Analyze size with UltraUninstaller' from the Explorer right-click menu.");
+                SetStatus(L.T("Removed 'Analyze size with UltraUninstaller' from the Explorer right-click menu."));
             }
             else
             {
                 var exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
                 if (string.IsNullOrEmpty(exePath))
                 {
-                    SetStatus("Could not determine UltraUninstaller's own path to register.");
+                    SetStatus(L.T("Could not determine UltraUninstaller's own path to register."));
                     return;
                 }
 
                 _shellIntegration.Register(exePath);
-                SetStatus("Added 'Analyze size with UltraUninstaller' to the Explorer right-click menu on folders.");
+                SetStatus(L.T("Added 'Analyze size with UltraUninstaller' to the Explorer right-click menu on folders."));
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Could not change Explorer integration: {ex.Message}");
+            SetStatus(L.F("Could not change Explorer integration: {0}", ex.Message));
         }
 
         SyncShellIntegrationMenuState();
@@ -290,13 +294,13 @@ public partial class MainWindow : Window
     {
         var names = string.Join(", ", selected.Select(s => s.DisplayName));
         var confirmMessage = selected.Count == 1
-            ? $"Uninstall {names}?"
-            : $"Uninstall {selected.Count} selected programs: {names}?";
+            ? L.F("Uninstall {0}?", names)
+            : L.F("Uninstall {0} selected programs: {1}?", selected.Count, names);
 
-        var confirm = MessageBox.Show(confirmMessage, "Confirm uninstall", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        var confirm = MessageBox.Show(confirmMessage, L.T("Confirm uninstall"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Uninstall cancelled.");
+            SetStatus(L.T("Uninstall cancelled."));
             return;
         }
 
@@ -309,7 +313,7 @@ public partial class MainWindow : Window
 
         foreach (var item in selected)
         {
-            SetStatus($"Starting uninstall of {item.DisplayName}.");
+            SetStatus(L.F("Starting uninstall of {0}.", item.DisplayName));
 
             var result = await _orchestrator.UninstallAsync(item.App, options, step =>
             {
@@ -324,8 +328,8 @@ public partial class MainWindow : Window
             });
 
             SetStatus(result.Success
-                ? $"{item.DisplayName} was uninstalled successfully using {DescribeLayer(result.LayerUsed)}."
-                : $"{item.DisplayName} could not be fully uninstalled. {result.FailureReason}");
+                ? L.F("{0} was uninstalled successfully using {1}.", item.DisplayName, DescribeLayer(result.LayerUsed))
+                : L.F("{0} could not be fully uninstalled. {1}", item.DisplayName, result.FailureReason));
         }
 
         SearchButton.IsEnabled = true;
@@ -336,12 +340,70 @@ public partial class MainWindow : Window
 
     private static string DescribeLayer(UninstallLayer layer) => layer switch
     {
-        UninstallLayer.NativeSilent => "its own silent uninstaller",
-        UninstallLayer.MsiQuiet => "a quiet Windows Installer removal",
-        UninstallLayer.NativeWithInferredSilentSwitch => "a silent switch UltraUninstaller added",
-        UninstallLayer.ForceRemoval => "force removal",
-        _ => "an unknown method",
+        UninstallLayer.NativeSilent => L.T("its own silent uninstaller"),
+        UninstallLayer.MsiQuiet => L.T("a quiet Windows Installer removal"),
+        UninstallLayer.NativeWithInferredSilentSwitch => L.T("a silent switch UltraUninstaller added"),
+        UninstallLayer.ForceRemoval => L.T("force removal"),
+        _ => L.T("an unknown method"),
     };
+
+    // --- Language menu ---------------------------------------------------------------
+
+    private void SyncLanguageMenuState()
+    {
+        EnglishLanguageMenuItem.IsChecked = L.Current == AppLanguage.English;
+        SerbianLanguageMenuItem.IsChecked = L.Current == AppLanguage.Serbian;
+    }
+
+    private void EnglishLanguageMenuItem_Click(object sender, RoutedEventArgs e) => ChangeLanguage(AppLanguage.English);
+
+    private void SerbianLanguageMenuItem_Click(object sender, RoutedEventArgs e) => ChangeLanguage(AppLanguage.Serbian);
+
+    private void ChangeLanguage(AppLanguage language)
+    {
+        // Checkable menu items toggle themselves on click; put the real state back first.
+        SyncLanguageMenuState();
+
+        if (language == L.Current)
+            return;
+
+        try
+        {
+            LanguageSettings.Save(language);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(L.F("Could not save the language choice: {0}", ex.Message));
+            return;
+        }
+
+        // Asked in the NEW language - the one the user just picked and can presumably read.
+        // Every label is built once when a window opens, so a restart is the honest way
+        // to switch everything at once.
+        var previous = L.Current;
+        L.SetLanguage(language);
+        var question = L.T("The language will change the next time UltraUninstaller starts. Restart now?");
+        var title = L.T("Language");
+        L.SetLanguage(previous);
+
+        var answer = MessageBox.Show(question, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        var exePath = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exePath))
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            SetStatus(L.F("Could not restart automatically: {0}. Please close and open UltraUninstaller again.", ex.Message));
+        }
+    }
 
     private void SetStatus(string message)
     {

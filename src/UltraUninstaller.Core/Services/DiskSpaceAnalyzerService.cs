@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using System.Security;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -29,7 +30,7 @@ public sealed class DiskSpaceAnalyzerService
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(rootPath))
-            throw new DirectoryNotFoundException($"Folder not found: {rootPath}");
+            throw new DirectoryNotFoundException(L.F("Folder not found: {0}", rootPath));
 
         var results = new List<FolderSizeEntry>();
 
@@ -62,7 +63,7 @@ public sealed class DiskSpaceAnalyzerService
             });
         }
 
-        progress?.Report(new ScanProgress(childDirs.Length, childDirs.Length, "Finishing up"));
+        progress?.Report(new ScanProgress(childDirs.Length, childDirs.Length, L.T("Finishing up")));
 
         // Also report loose files directly in this folder (not in a subfolder) as one combined entry,
         // since otherwise large files sitting loose at this level would be invisible to the scan.
@@ -112,7 +113,7 @@ public sealed class DiskSpaceAnalyzerService
                 try
                 {
                     if (!Directory.Exists(path) && !File.Exists(path))
-                        return new DeleteOutcome(path, true, "Already gone.");
+                        return new DeleteOutcome(path, true, L.T("Already gone."));
 
                     var result = ShellRecycleBin.SendToRecycleBin(path);
                     return result.Success

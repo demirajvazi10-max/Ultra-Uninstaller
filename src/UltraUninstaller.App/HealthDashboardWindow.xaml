@@ -1,7 +1,8 @@
 <Window x:Class="UltraUninstaller.App.HealthDashboardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="System Health - UltraUninstaller"
+        xmlns:l="clr-namespace:UltraUninstaller.App"
+        Title="{l:Tr 'System Health - UltraUninstaller'}"
         Height="620" Width="720"
         MinHeight="480" MinWidth="560">
 
@@ -15,40 +16,40 @@
             <RowDefinition Height="Auto"/>   <!-- Status live region -->
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="System Health" Style="{StaticResource HeadingTextStyle}" FontSize="24" Margin="0,0,0,16"/>
+        <TextBlock Grid.Row="0" Text="{l:Tr 'System Health'}" Style="{StaticResource HeadingTextStyle}" FontSize="24" Margin="0,0,0,16"/>
 
         <!-- Score card -->
         <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="ScoreText" Text="--" Style="{StaticResource ScoreTextStyle}"
-                               AutomationProperties.Name="Health score"/>
+                               AutomationProperties.Name="{l:Tr 'Health score'}"/>
                     <TextBlock Text=" / 100" Style="{StaticResource MutedTextStyle}" FontSize="20" VerticalAlignment="Bottom" Margin="4,0,0,10"/>
                 </StackPanel>
-                <TextBlock x:Name="GradeText" Text="Press Run Health Check to begin." FontSize="16" Margin="0,4,0,0"
-                           AutomationProperties.Name="Health grade summary"/>
+                <TextBlock x:Name="GradeText" Text="{l:Tr 'Press Run Health Check to begin.'}" FontSize="16" Margin="0,4,0,0"
+                           AutomationProperties.Name="{l:Tr 'Health grade summary'}"/>
             </StackPanel>
         </Border>
 
         <!-- Rescan button -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,16">
-            <Button x:Name="RunButton" Content="_Run Health Check" Click="RunButton_Click"
-                    AutomationProperties.Name="Run health check"/>
+            <Button x:Name="RunButton" Content="{l:Tr '_Run Health Check'}" Click="RunButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Run health check'}"/>
         </StackPanel>
 
         <!-- Factors -->
         <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="What affected the score" Style="{StaticResource HeadingTextStyle}" Margin="0,0,0,8"/>
+                <TextBlock DockPanel.Dock="Top" Text="{l:Tr 'What affected the score'}" Style="{StaticResource HeadingTextStyle}" Margin="0,0,0,8"/>
                 <ListView x:Name="FactorsListView"
-                          AutomationProperties.Name="Factors affecting the health score"
+                          AutomationProperties.Name="{l:Tr 'Factors affecting the health score'}"
                           VirtualizingPanel.IsVirtualizing="False"
                           BorderThickness="0">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Factor" Width="180" DisplayMemberBinding="{Binding Label}"/>
-                            <GridViewColumn Header="Points" Width="70" DisplayMemberBinding="{Binding PointsDisplay}"/>
-                            <GridViewColumn Header="Detail" Width="380" DisplayMemberBinding="{Binding Detail}"/>
+                            <GridViewColumn Header="{l:Tr 'Factor'}" Width="180" DisplayMemberBinding="{Binding Label}"/>
+                            <GridViewColumn Header="{l:Tr 'Points'}" Width="70" DisplayMemberBinding="{Binding PointsDisplay}"/>
+                            <GridViewColumn Header="{l:Tr 'Detail'}" Width="380" DisplayMemberBinding="{Binding Detail}"/>
                         </GridView>
                     </ListView.View>
                     <ListView.ItemContainerStyle>
@@ -62,18 +63,18 @@
 
         <!-- Remediation shortcuts -->
         <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,12">
-            <Button x:Name="OpenStartupManagerButton" Content="Open _Startup Manager" Click="OpenStartupManagerButton_Click"
+            <Button x:Name="OpenStartupManagerButton" Content="{l:Tr 'Open _Startup Manager'}" Click="OpenStartupManagerButton_Click"
                     Style="{StaticResource SecondaryButtonStyle}"
-                    AutomationProperties.Name="Open Startup Manager"/>
-            <Button x:Name="OpenRegistryCleanerButton" Content="Open _Registry Cleaner" Click="OpenRegistryCleanerButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Open Startup Manager'}"/>
+            <Button x:Name="OpenRegistryCleanerButton" Content="{l:Tr 'Open _Registry Cleaner'}" Click="OpenRegistryCleanerButton_Click"
                     Style="{StaticResource SecondaryButtonStyle}"
-                    AutomationProperties.Name="Open Registry Cleaner"/>
+                    AutomationProperties.Name="{l:Tr 'Open Registry Cleaner'}"/>
         </StackPanel>
 
         <!-- Live status region -->
         <TextBlock x:Name="StatusText" Grid.Row="5" FontWeight="SemiBold"
-                   AutomationProperties.Name="Current status"
+                   AutomationProperties.Name="{l:Tr 'Current status'}"
                    AutomationProperties.LiveSetting="Assertive"
-                   Text="Ready."/>
+                   Text="{l:Tr 'Ready.'}"/>
     </Grid>
 </Window>

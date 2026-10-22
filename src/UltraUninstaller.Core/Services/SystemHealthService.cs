@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -38,12 +39,12 @@ public sealed class SystemHealthService
 
     public async Task<SystemHealthReport> RunAsync(IProgress<string>? progress = null, CancellationToken cancellationToken = default)
     {
-        progress?.Report("Checking startup items");
+        progress?.Report(L.T("Checking startup items"));
         var startupItems = await _startupManager.ScanAsync(
             new Progress<string>(m => progress?.Report(m)), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
-        progress?.Report("Checking the registry");
+        progress?.Report(L.T("Checking the registry"));
         var registryIssues = await _registryCleaner.ScanAsync(
             new Progress<string>(m => progress?.Report(m)), cancellationToken);
 
@@ -62,9 +63,10 @@ public sealed class SystemHealthService
             var penalty = Math.Min(extra * PointsPerExtraStartupItem, MaxStartupPenalty);
             score -= penalty;
             factors.Add(new HealthScoreFactor(
-                "Startup items",
+                L.T("Startup items"),
                 penalty,
-                $"{enabledStartupCount} things launch at startup or logon ({extra} more than the {BaselineHealthyStartupCount} baseline) - each one adds to your boot time."));
+                L.F("{0} launch at startup or logon ({1} more than the {2} baseline) - each one adds to your boot time.",
+                    L.N(enabledStartupCount, "{0} thing", "{0} things"), extra, BaselineHealthyStartupCount)));
         }
 
         if (securityIssueCount > 0)
@@ -72,9 +74,10 @@ public sealed class SystemHealthService
             var penalty = Math.Min(securityIssueCount * PointsPerSecurityReviewIssue, MaxSecurityPenalty);
             score -= penalty;
             factors.Add(new HealthScoreFactor(
-                "Security review items",
+                L.T("Security review items"),
                 penalty,
-                $"{securityIssueCount} registry item(s) match a known persistence/hijack pattern and are worth reviewing in Registry Cleaner."));
+                L.F("{0} matched a known persistence/hijack pattern and are worth reviewing in Registry Cleaner.",
+                    L.N(securityIssueCount, "{0} registry item", "{0} registry items"))));
         }
 
         if (orphanedCount > 0)
@@ -82,9 +85,10 @@ public sealed class SystemHealthService
             var penalty = Math.Min(orphanedCount * PointsPerOrphanedEntry, MaxOrphanedPenalty);
             score -= penalty;
             factors.Add(new HealthScoreFactor(
-                "Leftover registry entries",
+                L.T("Leftover registry entries"),
                 penalty,
-                $"{orphanedCount} orphaned registry entr{(orphanedCount == 1 ? "y" : "ies")} from programs no longer fully installed - mostly cosmetic clutter, not a real slowdown."));
+                L.F("{0} from programs no longer fully installed - mostly cosmetic clutter, not a real slowdown.",
+                    L.N(orphanedCount, "{0} orphaned registry entry", "{0} orphaned registry entries"))));
         }
 
         score = Math.Clamp(score, 0, 100);

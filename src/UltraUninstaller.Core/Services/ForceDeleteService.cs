@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -47,77 +48,77 @@ public sealed class ForceDeleteService
         }
 
         // --- Layer 1: normal delete -------------------------------------------------
-        Report($"Trying a normal delete of {path}", OperationStepStatus.Started);
+        Report(L.F("Trying a normal delete of {0}", path), OperationStepStatus.Started);
         if (TryRecycleBin())
         {
-            Report("Deleted normally - no force needed.", OperationStepStatus.Succeeded);
+            Report(L.T("Deleted normally - no force needed."), OperationStepStatus.Succeeded);
             return new ForceDeleteResult { Success = true, LayerUsed = ForceDeleteLayer.RecycleBin, Steps = steps };
         }
-        Report("Normal delete failed.", OperationStepStatus.Failed);
+        Report(L.T("Normal delete failed."), OperationStepStatus.Failed);
 
         // --- Layer 2: orphaned Windows image mount point -----------------------------
-        Report("Checking for an orphaned Windows image mount (WinPE/WIM/VHD) at this folder", OperationStepStatus.Started);
+        Report(L.T("Checking for an orphaned Windows image mount (WinPE/WIM/VHD) at this folder"), OperationStepStatus.Started);
         var unmountOutcome = await TryUnmountImageAsync(path);
-        Report(unmountOutcome.Success ? "Detached the image mount." : "No specific mount found here, or it could not be detached directly.",
+        Report(unmountOutcome.Success ? L.T("Detached the image mount.") : L.T("No specific mount found here, or it could not be detached directly."),
             unmountOutcome.Success ? OperationStepStatus.Succeeded : OperationStepStatus.Skipped, unmountOutcome.Message);
 
         if (!unmountOutcome.Success)
         {
-            Report("Running a system-wide cleanup of orphaned Windows image mount points (this can take a minute)", OperationStepStatus.Started);
+            Report(L.T("Running a system-wide cleanup of orphaned Windows image mount points (this can take a minute)"), OperationStepStatus.Started);
             var cleanupOutcome = await RunCleanupMountpointsAsync();
-            Report(cleanupOutcome.Success ? "Mount point cleanup finished." : "Mount point cleanup did not report success.",
+            Report(cleanupOutcome.Success ? L.T("Mount point cleanup finished.") : L.T("Mount point cleanup did not report success."),
                 cleanupOutcome.Success ? OperationStepStatus.Succeeded : OperationStepStatus.Skipped, cleanupOutcome.Message);
         }
 
         if (TryRecycleBin())
         {
-            Report("Deleted after clearing the orphaned image mount.", OperationStepStatus.Succeeded);
+            Report(L.T("Deleted after clearing the orphaned image mount."), OperationStepStatus.Succeeded);
             return new ForceDeleteResult { Success = true, LayerUsed = ForceDeleteLayer.ImageMountCleanup, Steps = steps };
         }
 
         // --- Layer 3: ownership + permissions -----------------------------------------
-        Report("Taking ownership and resetting permissions on this folder", OperationStepStatus.Started);
+        Report(L.T("Taking ownership and resetting permissions on this folder"), OperationStepStatus.Started);
         var ownershipOutcome = await TakeOwnershipAndResetPermissionsAsync(path);
-        Report(ownershipOutcome.Success ? "Ownership and permissions reset." : "Could not fully reset ownership/permissions.",
+        Report(ownershipOutcome.Success ? L.T("Ownership and permissions reset.") : L.T("Could not fully reset ownership/permissions."),
             ownershipOutcome.Success ? OperationStepStatus.Succeeded : OperationStepStatus.Failed, ownershipOutcome.Message);
 
         if (TryRecycleBin())
         {
-            Report("Deleted after resetting ownership and permissions.", OperationStepStatus.Succeeded);
+            Report(L.T("Deleted after resetting ownership and permissions."), OperationStepStatus.Succeeded);
             return new ForceDeleteResult { Success = true, LayerUsed = ForceDeleteLayer.OwnershipReset, Steps = steps };
         }
 
         // --- Layer 4: permanent delete, bypassing the Recycle Bin ---------------------
-        Report("Attempting a permanent delete (this bypasses the Recycle Bin)", OperationStepStatus.Started);
+        Report(L.T("Attempting a permanent delete (this bypasses the Recycle Bin)"), OperationStepStatus.Started);
         try
         {
             await Task.Run(() => Directory.Delete(path, recursive: true));
-            Report("Permanently deleted.", OperationStepStatus.Succeeded);
+            Report(L.T("Permanently deleted."), OperationStepStatus.Succeeded);
             return new ForceDeleteResult { Success = true, LayerUsed = ForceDeleteLayer.PermanentDelete, Steps = steps };
         }
         catch (Exception ex)
         {
-            Report("Permanent delete failed.", OperationStepStatus.Failed, ex.Message);
+            Report(L.T("Permanent delete failed."), OperationStepStatus.Failed, ex.Message);
         }
 
         // --- Layer 5: schedule for deletion at next restart ---------------------------
-        Report("Scheduling this folder for deletion the next time Windows restarts", OperationStepStatus.Started);
+        Report(L.T("Scheduling this folder for deletion the next time Windows restarts"), OperationStepStatus.Started);
         var (scheduleSuccess, scheduledCount, scheduleError) = await Task.Run(() => RebootDeleteScheduler.ScheduleDirectoryForDeletion(path));
 
         if (scheduleSuccess)
         {
-            Report($"Scheduled ({scheduledCount} item(s)). It will be gone after your next restart.", OperationStepStatus.Succeeded);
+            Report(L.F("Scheduled ({0}). It will be gone after your next restart.", L.N(scheduledCount, "{0} item", "{0} items")), OperationStepStatus.Succeeded);
             return new ForceDeleteResult { Success = true, LayerUsed = ForceDeleteLayer.ScheduledOnReboot, Steps = steps };
         }
 
-        Report("Could not even schedule it for deletion on restart.", OperationStepStatus.Failed, scheduleError);
+        Report(L.T("Could not even schedule it for deletion on restart."), OperationStepStatus.Failed, scheduleError);
 
         return new ForceDeleteResult
         {
             Success = false,
             LayerUsed = ForceDeleteLayer.Failed,
             Steps = steps,
-            FailureReason = "Every method failed, including scheduling for restart. This folder may be protected by security software or an active driver.",
+            FailureReason = L.T("Every method failed, including scheduling for restart. This folder may be protected by security software or an active driver."),
         };
     }
 
@@ -169,7 +170,7 @@ public sealed class ForceDeleteService
 
             using var process = Process.Start(psi);
             if (process is null)
-                return (-1, $"Could not start {fileName}.");
+                return (-1, L.F("Could not start {0}.", fileName));
 
             using var cts = new CancellationTokenSource(timeout);
             try
@@ -179,7 +180,7 @@ public sealed class ForceDeleteService
             catch (OperationCanceledException)
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return (-1, $"{fileName} did not finish within {timeout.TotalSeconds:0} seconds and was stopped.");
+                return (-1, L.F("{0} did not finish within {1:0} seconds and was stopped.", fileName, timeout.TotalSeconds));
             }
 
             var stdout = await process.StandardOutput.ReadToEndAsync();

@@ -1,3 +1,4 @@
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 
 namespace UltraUninstaller.App;
@@ -22,8 +23,8 @@ public sealed class InstalledAppListItem
 
     public string EstimatedSizeDisplay =>
         App.EstimatedSizeKb is long kb
-            ? $"{kb / 1024.0:0.#} MB"
-            : "Unknown";
+            ? string.Format(L.Culture, "{0:0.#} MB", kb / 1024.0)
+            : L.T("Unknown");
 
     /// <summary>
     /// What a screen reader announces for this row. WPF's ListView+GridView does not
@@ -34,9 +35,9 @@ public sealed class InstalledAppListItem
     public string AutomationName => string.Join(", ", new[]
     {
         DisplayName,
-        !string.IsNullOrWhiteSpace(DisplayVersion) ? $"version {DisplayVersion}" : null,
-        !string.IsNullOrWhiteSpace(Publisher) ? $"publisher {Publisher}" : null,
+        !string.IsNullOrWhiteSpace(DisplayVersion) ? L.F("version {0}", DisplayVersion) : null,
+        !string.IsNullOrWhiteSpace(Publisher) ? L.F("publisher {0}", Publisher) : null,
         EstimatedSizeDisplay,
-        !string.IsNullOrWhiteSpace(InstallLocation) ? $"installed at {InstallLocation}" : null,
+        !string.IsNullOrWhiteSpace(InstallLocation) ? L.F("installed at {0}", InstallLocation) : null,
     }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }

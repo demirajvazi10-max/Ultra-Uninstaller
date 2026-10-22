@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using System.Security;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -28,32 +29,32 @@ public sealed class JunkCleanerService
 
     private static readonly List<CategoryDefinition> Categories = new()
     {
-        new CategoryDefinition(JunkCategoryKind.UserTempFiles, "Your Temp folder",
-            "Temporary files programs create for themselves and are supposed to clean up but often don't. Safe to remove - anything still needed gets recreated automatically.",
+        new CategoryDefinition(JunkCategoryKind.UserTempFiles, L.T("Your Temp folder"),
+            L.T("Temporary files programs create for themselves and are supposed to clean up but often don't. Safe to remove - anything still needed gets recreated automatically."),
             () => ResolveFolderTargets(Path.GetTempPath())),
 
-        new CategoryDefinition(JunkCategoryKind.WindowsTempFiles, "Windows Temp folder",
-            "The system-wide equivalent of your own Temp folder, used by installers, Windows Update, and background system tasks. Same rule: safe to clear, gets recreated as needed.",
+        new CategoryDefinition(JunkCategoryKind.WindowsTempFiles, L.T("Windows Temp folder"),
+            L.T("The system-wide equivalent of your own Temp folder, used by installers, Windows Update, and background system tasks. Same rule: safe to clear, gets recreated as needed."),
             () => ResolveFolderTargets(Path.Combine(SystemRoot, "Temp"))),
 
-        new CategoryDefinition(JunkCategoryKind.WindowsUpdateCache, "Windows Update download cache",
-            "Installer files Windows Update already applied and no longer needs. If Windows needs the same update again, it simply re-downloads it.",
+        new CategoryDefinition(JunkCategoryKind.WindowsUpdateCache, L.T("Windows Update download cache"),
+            L.T("Installer files Windows Update already applied and no longer needs. If Windows needs the same update again, it simply re-downloads it."),
             () => ResolveFolderTargets(Path.Combine(SystemRoot, "SoftwareDistribution", "Download"))),
 
-        new CategoryDefinition(JunkCategoryKind.BrowserCaches, "Browser caches",
-            "Cached web page data (images, scripts, style sheets) your browsers keep to load sites faster. Clearing it never removes bookmarks, saved passwords, or history - the browser just rebuilds the cache as you browse.",
+        new CategoryDefinition(JunkCategoryKind.BrowserCaches, L.T("Browser caches"),
+            L.T("Cached web page data (images, scripts, style sheets) your browsers keep to load sites faster. Clearing it never removes bookmarks, saved passwords, or history - the browser just rebuilds the cache as you browse."),
             ResolveBrowserCacheTargets),
 
-        new CategoryDefinition(JunkCategoryKind.ThumbnailCache, "Thumbnail and icon cache",
-            "Cached preview images Windows Explorer builds so folders open faster. Removing it is invisible except that thumbnails briefly regenerate the next time you browse those folders.",
+        new CategoryDefinition(JunkCategoryKind.ThumbnailCache, L.T("Thumbnail and icon cache"),
+            L.T("Cached preview images Windows Explorer builds so folders open faster. Removing it is invisible except that thumbnails briefly regenerate the next time you browse those folders."),
             ResolveThumbnailCacheTargets),
 
-        new CategoryDefinition(JunkCategoryKind.DeliveryOptimizationCache, "Delivery Optimization cache",
-            "Windows Update/Store files Windows keeps around so it can potentially share them with other PCs on your network or the internet (peer-to-peer updates). Safe to clear; Windows rebuilds it as needed.",
+        new CategoryDefinition(JunkCategoryKind.DeliveryOptimizationCache, L.T("Delivery Optimization cache"),
+            L.T("Windows Update/Store files Windows keeps around so it can potentially share them with other PCs on your network or the internet (peer-to-peer updates). Safe to clear; Windows rebuilds it as needed."),
             () => ResolveFolderTargets(Path.Combine(SystemRoot, "SoftwareDistribution", "DeliveryOptimization", "Cache"))),
 
-        new CategoryDefinition(JunkCategoryKind.WindowsErrorReportingQueue, "Windows Error Reporting queue",
-            "Crash/error report data Windows collected to optionally send to Microsoft, sitting in a local queue. Safe to clear - it's diagnostic data, not something any program depends on to run.",
+        new CategoryDefinition(JunkCategoryKind.WindowsErrorReportingQueue, L.T("Windows Error Reporting queue"),
+            L.T("Crash/error report data Windows collected to optionally send to Microsoft, sitting in a local queue. Safe to clear - it's diagnostic data, not something any program depends on to run."),
             () => new[]
             {
                 Path.Combine(ProgramData, "Microsoft", "Windows", "WER", "ReportQueue"),
@@ -75,7 +76,7 @@ public sealed class JunkCleanerService
             foreach (var def in Categories)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                progress?.Report($"Checking {def.DisplayName}");
+                progress?.Report(L.F("Checking {0}", def.DisplayName));
 
                 var targets = def.ResolveTargets();
                 var (size, count, approximate) = MeasureTargets(targets, cancellationToken);
@@ -95,15 +96,15 @@ public sealed class JunkCleanerService
                 }
             }
 
-            progress?.Report("Checking Recycle Bin");
+            progress?.Report(L.T("Checking Recycle Bin"));
             var (rbOk, rbSize, rbItems) = ShellRecycleBin.QueryRecycleBin();
             if (rbOk && (rbSize > 0 || rbItems > 0))
             {
                 results.Add(new JunkCategoryResult
                 {
                     Kind = JunkCategoryKind.RecycleBin,
-                    DisplayName = "Recycle Bin",
-                    Description = "Files you've already deleted, still sitting here in case you want them back. Emptying it is permanent - there's no further undo after this.",
+                    DisplayName = L.T("Recycle Bin"),
+                    Description = L.T("Files you've already deleted, still sitting here in case you want them back. Emptying it is permanent - there's no further undo after this."),
                     TargetPaths = Array.Empty<string>(),
                     SizeBytes = rbSize,
                     FileCount = (int)rbItems,
@@ -129,7 +130,7 @@ public sealed class JunkCleanerService
         foreach (var category in categories)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report($"Cleaning {category.DisplayName}");
+            progress?.Report(L.F("Cleaning {0}", category.DisplayName));
 
             if (category.Kind == JunkCategoryKind.RecycleBin)
             {

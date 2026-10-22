@@ -17,7 +17,7 @@
 
 #define AppName "UltraUninstaller"
 #define AppPublisher "Ultra Creative Suite"
-#define AppURL "https://github.com/demirajvazi10-max/UltraUninstaller"
+#define AppURL "https://github.com/demirajvazi10-max/Ultra-Uninstaller"
 #define AppExeName "UltraUninstaller.exe"
 
 [Setup]
@@ -33,10 +33,22 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-; The app itself only requests "highestAvailable" elevation (so it can still
-; open normally without a UAC prompt), but installing into Program Files and
-; registering Start Menu entries for all users does need admin at setup time.
+; Install mode: "for all users" (Program Files, needs admin) is the default,
+; but Setup first shows an accessible choice dialog that also offers "only for
+; me" (installs into the user's own Programs folder, no administrator rights or
+; UAC prompt needed). Without this, a cancelled or unseen UAC prompt - or an
+; account without admin rights - made Setup simply close with no message at all,
+; which is exactly what one tester reported. /ALLUSERS or /CURRENTUSER on the
+; command line also picks the mode silently.
+; {autopf}, {group} and {autodesktop} below follow whichever mode is chosen.
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog commandline
+; Always write a log to %TEMP% ("Setup Log yyyy-mm-dd #nnn.txt"), so if Setup
+; ever fails on someone's machine they can just send that file.
+SetupLogging=yes
+; Only ask for the Setup language when Windows' own language isn't English or
+; Serbian - otherwise pick the matching one automatically (one dialog fewer).
+ShowLanguageDialog=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=Output
@@ -48,9 +60,14 @@ UninstallDisplayIcon={app}\{#AppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+; Serbian (Latin script). Inno Setup only ships this as an unofficial translation,
+; so a copy lives in this repo (installer\Languages) instead of relying on the
+; compiler's own folder.
+Name: "serbian"; MessagesFile: "Languages\SerbianLatin.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+; {cm:...} texts come from the language file, so they appear in English or Serbian.
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 ; Everything the self-contained publish produced (the exe plus its native
@@ -60,8 +77,8 @@ Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cr
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

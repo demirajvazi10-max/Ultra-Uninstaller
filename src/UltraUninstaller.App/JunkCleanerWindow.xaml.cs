@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -31,7 +32,7 @@ public partial class JunkCleanerWindow : Window
         StepLogList.Items.Clear();
 
         var progressWindow = new ScanProgressWindow { Owner = this };
-        progressWindow.ReportProgressText("Starting scan...");
+        progressWindow.ReportProgressText(L.T("Starting scan..."));
 
         var progress = new Progress<string>(message =>
         {
@@ -67,19 +68,21 @@ public partial class JunkCleanerWindow : Window
 
             var totalBytes = categories.Sum(c => c.SizeBytes);
             var totalGb = totalBytes / 1024.0 / 1024.0 / 1024.0;
-            var totalDisplay = totalGb >= 1 ? $"{totalGb:0.##} GB" : $"{totalBytes / 1024.0 / 1024.0:0.#} MB";
+            var totalDisplay = totalGb >= 1
+                ? string.Format(L.Culture, "{0:0.##} GB", totalGb)
+                : string.Format(L.Culture, "{0:0.#} MB", totalBytes / 1024.0 / 1024.0);
 
             SetStatus(categories.Count == 0
-                ? "Nothing found. All the locations this tool checks are already clean."
-                : $"Found {categories.Count} categor{(categories.Count == 1 ? "y" : "ies")}, about {totalDisplay} total. Review and select what to clean.");
+                ? L.T("Nothing found. All the locations this tool checks are already clean.")
+                : L.F("Found {0}, about {1} total. Review and select what to clean.", L.N(categories.Count, "{0} category", "{0} categories"), totalDisplay));
         }
         catch (OperationCanceledException)
         {
-            SetStatus("Scan cancelled.");
+            SetStatus(L.T("Scan cancelled."));
         }
         catch (Exception ex)
         {
-            SetStatus($"Scan failed: {ex.Message}");
+            SetStatus(L.F("Scan failed: {0}", ex.Message));
         }
         finally
         {
@@ -96,27 +99,27 @@ public partial class JunkCleanerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<JunkCategoryListItem>().ToList();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one category to show its details.");
+            SetStatus(L.T("Select exactly one category to show its details."));
             return;
         }
 
         var category = selected[0].Result;
         var pathsList = category.TargetPaths.Count > 0
             ? string.Join(Environment.NewLine, category.TargetPaths)
-            : "(no individual folders - handled through the Recycle Bin)";
+            : L.T("(no individual folders - handled through the Recycle Bin)");
 
         var details = string.Join(Environment.NewLine, new[]
         {
-            $"Category: {category.DisplayName}",
-            $"Size: {selected[0].SizeDisplay}",
-            $"Items: {category.FileCount}",
-            $"{category.Description}",
+            L.F("Category: {0}", category.DisplayName),
+            L.F("Size: {0}", selected[0].SizeDisplay),
+            L.F("Items: {0}", category.FileCount),
+            category.Description,
             "",
-            "Locations:",
+            L.T("Locations:"),
             pathsList,
         });
 
-        MessageBox.Show(details, $"Details - {category.DisplayName}", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(details, L.F("Details - {0}", category.DisplayName), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async Task CleanSelectedAsync()
@@ -124,23 +127,23 @@ public partial class JunkCleanerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<JunkCategoryListItem>().ToList();
         if (selected.Count == 0)
         {
-            SetStatus("Nothing is selected. Select one or more categories first.");
+            SetStatus(L.T("Nothing is selected. Select one or more categories first."));
             return;
         }
 
         var includesRecycleBin = selected.Any(i => i.Result.Kind == JunkCategoryKind.RecycleBin);
         var names = string.Join(", ", selected.Select(i => i.DisplayName));
         var confirm = MessageBox.Show(
-            $"Clean {selected.Count} categor{(selected.Count == 1 ? "y" : "ies")}?\n\n{names}\n\n" +
-            "These are files Windows or your browsers rebuild automatically - this is not the same as uninstalling anything." +
-            (includesRecycleBin ? "\n\nThe Recycle Bin is included: emptying it is permanent and cannot be undone." : ""),
-            "Confirm cleaning",
+            L.F("Clean {0}?", L.N(selected.Count, "{0} category", "{0} categories")) + "\n\n" + names + "\n\n" +
+            L.T("These are files Windows or your browsers rebuild automatically - this is not the same as uninstalling anything.") +
+            (includesRecycleBin ? "\n\n" + L.T("The Recycle Bin is included: emptying it is permanent and cannot be undone.") : ""),
+            L.T("Confirm cleaning"),
             MessageBoxButton.YesNo,
             includesRecycleBin ? MessageBoxImage.Warning : MessageBoxImage.Question);
 
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Cancelled.");
+            SetStatus(L.T("Cancelled."));
             return;
         }
 
@@ -157,9 +160,9 @@ public partial class JunkCleanerWindow : Window
         foreach (var outcome in results)
         {
             var line = outcome.Error is not null
-                ? $"{outcome.DisplayName}: FAILED - {outcome.Error}"
-                : $"{outcome.DisplayName}: removed {outcome.FilesDeleted} item(s), freed {outcome.BytesFreed / 1024.0 / 1024.0:0.#} MB" +
-                  (outcome.FilesSkipped > 0 ? $" ({outcome.FilesSkipped} skipped - in use)" : "");
+                ? L.F("{0}: FAILED - {1}", outcome.DisplayName, outcome.Error)
+                : L.F("{0}: removed {1}, freed {2:0.#} MB", outcome.DisplayName, L.N(outcome.FilesDeleted, "{0} item", "{0} items"), outcome.BytesFreed / 1024.0 / 1024.0) +
+                  (outcome.FilesSkipped > 0 ? " " + L.F("({0} skipped - in use)", outcome.FilesSkipped) : "");
 
             StepLogList.Items.Add(line);
 
@@ -178,8 +181,10 @@ public partial class JunkCleanerWindow : Window
         ScanButton.IsEnabled = true;
 
         var freedGb = totalFreed / 1024.0 / 1024.0 / 1024.0;
-        var freedDisplay = freedGb >= 1 ? $"{freedGb:0.##} GB" : $"{totalFreed / 1024.0 / 1024.0:0.#} MB";
-        SetStatus($"Done. Freed about {freedDisplay} across {cleanedItems.Count} of {selected.Count} categor{(selected.Count == 1 ? "y" : "ies")}.");
+        var freedDisplay = freedGb >= 1
+            ? string.Format(L.Culture, "{0:0.##} GB", freedGb)
+            : string.Format(L.Culture, "{0:0.#} MB", totalFreed / 1024.0 / 1024.0);
+        SetStatus(L.F("Done. Freed about {0} across {1} of {2}.", freedDisplay, cleanedItems.Count, L.N(selected.Count, "{0} category", "{0} categories")));
     }
 
     private void SetStatus(string message)

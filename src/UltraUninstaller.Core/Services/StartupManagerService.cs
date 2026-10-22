@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -40,19 +41,19 @@ public sealed class StartupManagerService
     {
         var items = new List<StartupItem>();
 
-        progress?.Report("Checking Run registry entries");
+        progress?.Report(L.T("Checking Run registry entries"));
         items.AddRange(await Task.Run(ScanRegistryRun, cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
 
-        progress?.Report("Checking Startup folder shortcuts");
+        progress?.Report(L.T("Checking Startup folder shortcuts"));
         items.AddRange(await Task.Run(ScanStartupFolder, cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
 
-        progress?.Report("Checking scheduled tasks that run at logon (this can take a moment)");
+        progress?.Report(L.T("Checking scheduled tasks that run at logon (this can take a moment)"));
         items.AddRange(await ScanScheduledTasksAsync(progress, cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
 
-        progress?.Report("Checking services set to start automatically");
+        progress?.Report(L.T("Checking services set to start automatically"));
         items.AddRange(await Task.Run(ScanAutoStartServices, cancellationToken));
 
         return items
@@ -71,7 +72,7 @@ public sealed class StartupManagerService
                 StartupSource.StartupFolder => await Task.Run(() => ToggleStartupFolder(item, enable)),
                 StartupSource.ScheduledTask => await ToggleScheduledTaskAsync(item, enable),
                 StartupSource.AutoStartService => await Task.Run(() => ToggleService(item, enable)),
-                _ => new StartupToggleOutcome(false, "Unknown startup source."),
+                _ => new StartupToggleOutcome(false, L.T("Unknown startup source.")),
             };
         }
         catch (Exception ex)
@@ -128,7 +129,7 @@ public sealed class StartupManagerService
     private static StartupToggleOutcome ToggleRegistryRun(StartupItem item, bool enable)
     {
         if (item.Scope is not RegistryScope scope)
-            return new StartupToggleOutcome(false, "Missing registry scope.");
+            return new StartupToggleOutcome(false, L.T("Missing registry scope."));
 
         var subPath = scope == RegistryScope.LocalMachine32OnWow64 ? RunKeySubPathWow : RunKeySubPath64;
         var (hive, view) = scope switch
@@ -142,7 +143,7 @@ public sealed class StartupManagerService
         using var baseKey = RegistryKey.OpenBaseKey(hive, view);
         using var runKey = baseKey.OpenSubKey(subPath, writable: true);
         if (runKey is null)
-            return new StartupToggleOutcome(false, "Run key not found.");
+            return new StartupToggleOutcome(false, L.T("Run key not found."));
 
         var currentValueName = item.Identifier;
         var isCurrentlyDisabled = currentValueName.StartsWith(DisabledValuePrefix, StringComparison.Ordinal);
@@ -152,7 +153,7 @@ public sealed class StartupManagerService
 
         var data = runKey.GetValue(currentValueName);
         if (data is null)
-            return new StartupToggleOutcome(false, "Value no longer exists (already changed elsewhere?).");
+            return new StartupToggleOutcome(false, L.T("Value no longer exists (already changed elsewhere?)."));
 
         var newValueName = enable ? item.Name : DisabledValuePrefix + item.Name;
 
@@ -215,7 +216,7 @@ public sealed class StartupManagerService
     {
         var currentPath = item.Identifier;
         if (!File.Exists(currentPath))
-            return new StartupToggleOutcome(false, "Shortcut file no longer exists.");
+            return new StartupToggleOutcome(false, L.T("Shortcut file no longer exists."));
 
         var startupRoot = Path.GetDirectoryName(Path.GetDirectoryName(currentPath)) is { } grandParent
                            && Path.GetFileName(Path.GetDirectoryName(currentPath)) == DisabledShortcutFolderName
@@ -262,7 +263,7 @@ public sealed class StartupManagerService
             cancellationToken.ThrowIfCancellationRequested();
 
             var taskName = taskNames[i];
-            progress?.Report($"Checking scheduled task {i + 1} of {taskNames.Count}: {taskName}");
+            progress?.Report(L.F("Checking scheduled task {0} of {1}: {2}", i + 1, taskNames.Count, taskName));
 
             var xmlResult = await RunProcessAsync("schtasks.exe", $"/Query /TN \"{taskName}\" /XML", TimeSpan.FromSeconds(10));
             if (xmlResult.ExitCode != 0 || xmlResult.Output is null)
@@ -298,7 +299,7 @@ public sealed class StartupManagerService
         var result = await RunProcessAsync("schtasks.exe", $"/Change /TN \"{item.Identifier}\" {flag}", TimeSpan.FromSeconds(15));
         return result.ExitCode == 0
             ? new StartupToggleOutcome(true, null)
-            : new StartupToggleOutcome(false, result.Output ?? $"schtasks exited with code {result.ExitCode}.");
+            : new StartupToggleOutcome(false, result.Output ?? L.F("schtasks exited with code {0}.", result.ExitCode));
     }
 
     // ================= Auto-start Services =================
@@ -355,7 +356,7 @@ public sealed class StartupManagerService
         using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         using var serviceKey = baseKey.OpenSubKey($@"{ServicesKeyPath}\{item.Identifier}", writable: true);
         if (serviceKey is null)
-            return new StartupToggleOutcome(false, "Service registry key no longer exists.");
+            return new StartupToggleOutcome(false, L.T("Service registry key no longer exists."));
 
         // Automatic (2) <-> Manual (3). We deliberately never write Disabled (4) from here -
         // Manual is the standard, safe way to stop something auto-starting while leaving it

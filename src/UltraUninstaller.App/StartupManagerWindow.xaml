@@ -1,7 +1,8 @@
 <Window x:Class="UltraUninstaller.App.StartupManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Startup Manager - UltraUninstaller"
+        xmlns:l="clr-namespace:UltraUninstaller.App"
+        Title="{l:Tr 'Startup Manager - UltraUninstaller'}"
         Height="680" Width="1000"
         MinHeight="480" MinWidth="700">
 
@@ -15,24 +16,24 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="ScanButton" Content="_Scan startup items" Click="ScanButton_Click"
-                    AutomationProperties.Name="Scan everything that runs at startup or logon"/>
+            <Button x:Name="ScanButton" Content="{l:Tr '_Scan startup items'}" Click="ScanButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Scan everything that runs at startup or logon'}"/>
         </StackPanel>
 
         <!-- Checks Registry Run, the Startup folder, logon-triggered Scheduled Tasks, and
              services set to Automatic - not just Run keys like most basic tools. -->
         <ListView x:Name="ResultsListView" Grid.Row="1"
-                  AutomationProperties.Name="Startup items"
+                  AutomationProperties.Name="{l:Tr 'Startup items'}"
                   SelectionMode="Extended"
                   VirtualizingPanel.IsVirtualizing="False"
                   SelectionChanged="ResultsListView_SelectionChanged">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="Name" Width="220" DisplayMemberBinding="{Binding Name}"/>
-                    <GridViewColumn Header="Source" Width="200" DisplayMemberBinding="{Binding SourceDisplay}"/>
-                    <GridViewColumn Header="Status" Width="80" DisplayMemberBinding="{Binding StatusDisplay}"/>
-                    <GridViewColumn Header="Trust" Width="220" DisplayMemberBinding="{Binding TrustDisplay}"/>
-                    <GridViewColumn Header="Description" Width="250" DisplayMemberBinding="{Binding DescriptionDisplay}"/>
+                    <GridViewColumn Header="{l:Tr 'Name'}" Width="220" DisplayMemberBinding="{Binding Name}"/>
+                    <GridViewColumn Header="{l:Tr 'Source'}" Width="200" DisplayMemberBinding="{Binding SourceDisplay}"/>
+                    <GridViewColumn Header="{l:Tr 'Status'}" Width="80" DisplayMemberBinding="{Binding StatusDisplay}"/>
+                    <GridViewColumn Header="{l:Tr 'Trust'}" Width="220" DisplayMemberBinding="{Binding TrustDisplay}"/>
+                    <GridViewColumn Header="{l:Tr 'Description'}" Width="250" DisplayMemberBinding="{Binding DescriptionDisplay}"/>
                 </GridView>
             </ListView.View>
             <ListView.ItemContainerStyle>
@@ -42,32 +43,32 @@
             </ListView.ItemContainerStyle>
             <ListView.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="_Disable selected" Click="ContextDisableSelected_Click"
-                              AutomationProperties.Name="Disable selected startup items"/>
-                    <MenuItem Header="_Enable selected" Click="ContextEnableSelected_Click"
-                              AutomationProperties.Name="Enable selected startup items"/>
+                    <MenuItem Header="{l:Tr '_Disable selected'}" Click="ContextDisableSelected_Click"
+                              AutomationProperties.Name="{l:Tr 'Disable selected startup items'}"/>
+                    <MenuItem Header="{l:Tr '_Enable selected'}" Click="ContextEnableSelected_Click"
+                              AutomationProperties.Name="{l:Tr 'Enable selected startup items'}"/>
                     <Separator/>
-                    <MenuItem Header="Show _details" Click="ContextShowDetails_Click"
-                              AutomationProperties.Name="Show details for the selected item"/>
-                    <MenuItem Header="_Search online for information about this" Click="ContextSearchOnline_Click"
-                              AutomationProperties.Name="Search online for information about the selected item"/>
+                    <MenuItem Header="{l:Tr 'Show _details'}" Click="ContextShowDetails_Click"
+                              AutomationProperties.Name="{l:Tr 'Show details for the selected item'}"/>
+                    <MenuItem Header="{l:Tr '_Search online for information about this'}" Click="ContextSearchOnline_Click"
+                              AutomationProperties.Name="{l:Tr 'Search online for information about the selected item'}"/>
                 </ContextMenu>
             </ListView.ContextMenu>
         </ListView>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,8">
-            <Button x:Name="DisableSelectedButton" Content="_Disable selected" Click="DisableSelectedButton_Click"
-                    AutomationProperties.Name="Disable selected startup items" IsEnabled="False"/>
-            <Button x:Name="EnableSelectedButton" Content="_Enable selected" Click="EnableSelectedButton_Click"
-                    AutomationProperties.Name="Enable selected startup items" IsEnabled="False"/>
+            <Button x:Name="DisableSelectedButton" Content="{l:Tr '_Disable selected'}" Click="DisableSelectedButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Disable selected startup items'}" IsEnabled="False"/>
+            <Button x:Name="EnableSelectedButton" Content="{l:Tr '_Enable selected'}" Click="EnableSelectedButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Enable selected startup items'}" IsEnabled="False"/>
         </StackPanel>
 
         <TextBlock x:Name="StatusText" Grid.Row="3" FontWeight="Bold" Margin="0,0,0,4"
-                   AutomationProperties.Name="Current status"
+                   AutomationProperties.Name="{l:Tr 'Current status'}"
                    AutomationProperties.LiveSetting="Assertive"
-                   Text="Press Scan startup items to check the registry, the Startup folder, scheduled tasks, and automatic services."/>
+                   Text="{l:Tr 'Press Scan startup items to check the registry, the Startup folder, scheduled tasks, and automatic services.'}"/>
 
         <ListBox x:Name="StepLogList" Grid.Row="4"
-                 AutomationProperties.Name="Enable and disable step log"/>
+                 AutomationProperties.Name="{l:Tr 'Enable and disable step log'}"/>
     </Grid>
 </Window>

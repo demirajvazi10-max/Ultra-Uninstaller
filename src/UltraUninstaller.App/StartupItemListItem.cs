@@ -1,3 +1,4 @@
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 
 namespace UltraUninstaller.App;
@@ -16,25 +17,25 @@ public sealed class StartupItemListItem
 
     public string SourceDisplay => Item.Source switch
     {
-        StartupSource.RegistryRun => "Registry (Run at startup)",
-        StartupSource.StartupFolder => "Startup folder shortcut",
-        StartupSource.ScheduledTask => "Scheduled task (runs at logon)",
-        StartupSource.AutoStartService => "Service (starts automatically)",
-        _ => "Unknown",
+        StartupSource.RegistryRun => L.T("Registry (Run at startup)"),
+        StartupSource.StartupFolder => L.T("Startup folder shortcut"),
+        StartupSource.ScheduledTask => L.T("Scheduled task (runs at logon)"),
+        StartupSource.AutoStartService => L.T("Service (starts automatically)"),
+        _ => L.T("Unknown"),
     };
 
-    public string StatusDisplay => Item.IsEnabled ? "Enabled" : "Disabled";
+    public string StatusDisplay => Item.IsEnabled ? L.T("Enabled") : L.T("Disabled");
 
     public string TrustDisplay
     {
         get
         {
             if (Item.IsSigned == true)
-                return "Signed";
+                return L.T("Signed");
 
             return Item.IsInUnusualLocation
-                ? "Unsigned - unusual location, review before trusting"
-                : "Unsigned";
+                ? L.T("Unsigned - unusual location, review before trusting")
+                : L.T("Unsigned");
         }
     }
 

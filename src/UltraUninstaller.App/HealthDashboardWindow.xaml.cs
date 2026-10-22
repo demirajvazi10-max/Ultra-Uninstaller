@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -34,10 +35,10 @@ public partial class HealthDashboardWindow : Window
         RunButton.IsEnabled = false;
         _factors.Clear();
         ScoreText.Text = "--";
-        GradeText.Text = "Checking...";
+        GradeText.Text = L.T("Checking...");
 
         var progressWindow = new ScanProgressWindow { Owner = this };
-        progressWindow.ReportProgressText("Starting health check...");
+        progressWindow.ReportProgressText(L.T("Starting health check..."));
 
         var progress = new Progress<string>(message =>
         {
@@ -71,13 +72,13 @@ public partial class HealthDashboardWindow : Window
         }
         catch (OperationCanceledException)
         {
-            SetStatus("Health check cancelled.");
+            SetStatus(L.T("Health check cancelled."));
             ScoreText.Text = "--";
-            GradeText.Text = "Cancelled - press Run Health Check to try again.";
+            GradeText.Text = L.T("Cancelled - press Run Health Check to try again.");
         }
         catch (Exception ex)
         {
-            SetStatus($"Health check failed: {ex.Message}");
+            SetStatus(L.F("Health check failed: {0}", ex.Message));
         }
         finally
         {
@@ -102,8 +103,8 @@ public partial class HealthDashboardWindow : Window
             _factors.Add(new HealthScoreFactorListItem(factor));
 
         SetStatus(report.Factors.Count == 0
-            ? $"Health check complete. Score {report.Score} out of 100, grade {report.Grade}. No issues found in the areas this checks."
-            : $"Health check complete. Score {report.Score} out of 100, grade {report.Grade}. {report.Factors.Count} factor(s) affected the score - see the list below.");
+            ? L.F("Health check complete. Score {0} out of 100, grade {1}. No issues found in the areas this checks.", report.Score, report.Grade)
+            : L.F("Health check complete. Score {0} out of 100, grade {1}. {2} affected the score - see the list below.", report.Score, report.Grade, L.N(report.Factors.Count, "{0} factor", "{0} factors")));
     }
 
     private void SetStatus(string message)

@@ -14,7 +14,8 @@ inaccessible window ever needs to appear.
 Working so far: the Force Uninstall engine, an accessible right-click context menu on
 the program list, the Disk Space Analyzer (with Force Delete), an Explorer "Analyze
 size with UltraUninstaller" right-click entry, a Registry Cleaner, a Startup Manager,
-and a Junk Cleaner. All planned core features are now in.
+and a Junk Cleaner. All planned core features are now in. The whole app - and its
+installer - is available in **English and Serbian (Latin script)**.
 
 ### Program list context menu
 
@@ -244,6 +245,39 @@ worked, not just "done".
 **File → Exit** in the main window's menu bar closes UltraUninstaller entirely
 (including any open Disk Space Analyzer windows).
 
+## Installing
+
+Download `UltraUninstaller-Setup-<version>.exe` from the
+[Releases](https://github.com/demirajvazi10-max/Ultra-Uninstaller/releases) page, or the
+portable `.zip` if you'd rather not install anything.
+
+When Setup starts, it asks how to install:
+
+- **Install for all users** - into Program Files. Needs administrator rights, so
+  Windows shows a UAC prompt next.
+- **Install only for me** - into your own user folder. No administrator rights and
+  no UAC prompt needed.
+
+You can also skip the question from the command line with `/ALLUSERS` or
+`/CURRENTUSER`. Setup picks English or Serbian automatically from your Windows
+display language (it only asks if your Windows language is something else).
+
+If Setup ever closes without installing, it leaves a log file in your Temp folder
+(`%TEMP%`, named `Setup Log <date> #<number>.txt`) - please attach it when
+reporting the problem. Earlier versions always required administrator rights, so a
+cancelled or unnoticed UAC prompt made Setup close silently; the "only for me"
+option above is the fix for that.
+
+## Language
+
+UltraUninstaller starts in Serbian (Latin script) when Windows is set to Serbian,
+Croatian, Bosnian or Montenegrin, and in English otherwise. To change it, open
+**File → Language** and pick **English** or **Srpski (latinica)**; the choice is
+remembered and applied after a restart (the app offers to restart right away).
+Everything is translated - menus, buttons, list columns, status messages, step logs,
+confirmation dialogs, and the names screen readers announce for each control - so
+JAWS/NVDA users and sighted users always get the same language.
+
 ## How Force Uninstall works
 
 1. **Layer 1 — Native silent.** Reads `QuietUninstallString` (or `UninstallString`)
@@ -267,6 +301,24 @@ a step log, so the whole process is followable without looking at a progress bar
   UI dependencies, so it can be built and unit-tested on any platform.
 - `src/UltraUninstaller.App` — the WPF UI. Targets `net8.0-windows` and only builds
   on Windows (WPF itself is Windows-only).
+
+## Translations
+
+All user-facing text goes through a small helper in
+`src/UltraUninstaller.Core/Localization`:
+
+- In C#: `L.T("text")` for fixed text, `L.F("text with {0}", value)` for text with
+  values, and `L.N(count, "{0} item", "{0} items")` for count-dependent text.
+- In XAML: `Content="{l:Tr '_Scan'}"` (the `l` namespace is
+  `clr-namespace:UltraUninstaller.App`), used for visible labels and for every
+  `AutomationProperties.Name`.
+
+The English text itself is the lookup key, so a missing translation simply shows
+English rather than a blank. Serbian lives in `SerbianStrings.cs`; count-dependent
+entries hold three forms separated by `|` (1 / 2-4 / 5+, e.g.
+`"{0} stavka|{0} stavke|{0} stavki"`). Access keys (the `_` letter) are chosen per
+language so they never clash within one window or menu. The saved language choice is
+stored in `%AppData%\UltraUninstaller\language.txt`.
 
 ## Building and running (on Windows)
 

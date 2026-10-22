@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -37,7 +38,7 @@ public sealed class SilentUninstallRunner
 
             using var process = Process.Start(psi);
             if (process is null)
-                return new SilentRunOutcome(false, null, "Process failed to start.");
+                return new SilentRunOutcome(false, null, L.T("Process failed to start."));
 
             using var cts = new CancellationTokenSource(timeout);
             try
@@ -47,7 +48,7 @@ public sealed class SilentUninstallRunner
             catch (OperationCanceledException)
             {
                 TryKill(process);
-                return new SilentRunOutcome(false, null, $"Uninstaller did not finish within {timeout.TotalSeconds:0} seconds and was stopped.");
+                return new SilentRunOutcome(false, null, L.F("Uninstaller did not finish within {0:0} seconds and was stopped.", timeout.TotalSeconds));
             }
 
             var stderr = await process.StandardError.ReadToEndAsync();

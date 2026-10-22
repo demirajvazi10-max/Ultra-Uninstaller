@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 
 namespace UltraUninstaller.App;
@@ -34,7 +35,7 @@ public partial class ScanProgressWindow : Window
             : (int)Math.Round(100.0 * progress.FoldersCompleted / progress.FoldersTotal);
 
         ScanProgressBar.Value = percent;
-        StatusText.Text = $"Measuring {progress.CurrentFolderName} ({progress.FoldersCompleted} of {progress.FoldersTotal})";
+        StatusText.Text = L.F("Measuring {0} ({1} of {2})", progress.CurrentFolderName, progress.FoldersCompleted, progress.FoldersTotal);
     }
 
     /// <summary>
@@ -51,7 +52,7 @@ public partial class ScanProgressWindow : Window
 
     public void ShowCancelling()
     {
-        StatusText.Text = "Cancelling scan...";
+        StatusText.Text = L.T("Cancelling scan...");
         CancelButton.IsEnabled = false;
     }
 

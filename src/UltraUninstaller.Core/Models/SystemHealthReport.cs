@@ -1,3 +1,5 @@
+using UltraUninstaller.Core.Localization;
+
 namespace UltraUninstaller.Core.Models;
 
 /// <summary>
@@ -21,11 +23,11 @@ public sealed class SystemHealthReport
 
     public string GradeDisplay => Grade switch
     {
-        HealthGrade.A => "A - Looking good",
-        HealthGrade.B => "B - A few things worth a look",
-        HealthGrade.C => "C - Several things worth cleaning up",
-        HealthGrade.D => "D - Quite a bit slowing you down",
-        HealthGrade.F => "F - A lot going on here",
-        _ => "Unknown",
+        HealthGrade.A => L.T("A - Looking good"),
+        HealthGrade.B => L.T("B - A few things worth a look"),
+        HealthGrade.C => L.T("C - Several things worth cleaning up"),
+        HealthGrade.D => L.T("D - Quite a bit slowing you down"),
+        HealthGrade.F => L.T("F - A lot going on here"),
+        _ => L.T("Unknown"),
     };
 }

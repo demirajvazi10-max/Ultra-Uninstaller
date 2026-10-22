@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -32,7 +33,7 @@ public partial class RegistryCleanerWindow : Window
         StepLogList.Items.Clear();
 
         var progressWindow = new ScanProgressWindow { Owner = this };
-        progressWindow.ReportProgressText("Starting scan...");
+        progressWindow.ReportProgressText(L.T("Starting scan..."));
 
         var progress = new Progress<string>(message =>
         {
@@ -67,16 +68,16 @@ public partial class RegistryCleanerWindow : Window
                 _items.Add(new RegistryIssueListItem(issue));
 
             SetStatus(issues.Count == 0
-                ? "No issues found. The registry looks clean for the categories this tool checks."
-                : $"Found {issues.Count} issue{(issues.Count == 1 ? "" : "s")}. Review them before removing - each is backed up automatically when removed.");
+                ? L.T("No issues found. The registry looks clean for the categories this tool checks.")
+                : L.F("Found {0}. Review them before removing - each is backed up automatically when removed.", L.N(issues.Count, "{0} issue", "{0} issues")));
         }
         catch (OperationCanceledException)
         {
-            SetStatus("Scan cancelled.");
+            SetStatus(L.T("Scan cancelled."));
         }
         catch (Exception ex)
         {
-            SetStatus($"Scan failed: {ex.Message}");
+            SetStatus(L.F("Scan failed: {0}", ex.Message));
         }
         finally
         {
@@ -93,25 +94,25 @@ public partial class RegistryCleanerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<RegistryIssueListItem>().ToList();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one issue to show its details.");
+            SetStatus(L.T("Select exactly one issue to show its details."));
             return;
         }
 
         var issue = selected[0].Issue;
         var details = string.Join(Environment.NewLine, new[]
         {
-            $"Category: {selected[0].CategoryDisplay}",
-            $"Name: {issue.DisplayName}",
-            $"Reason: {issue.Reason}",
-            $"Registry path: {issue.FullRegistryPath}",
+            L.F("Category: {0}", selected[0].CategoryDisplay),
+            L.F("Name: {0}", issue.DisplayName),
+            L.F("Reason: {0}", issue.Reason),
+            L.F("Registry path: {0}", issue.FullRegistryPath),
             issue.ValueNameToDelete is not null
                 ? issue.CorrectedValueData is not null
-                    ? $"Value to reset: {issue.ValueNameToDelete} (back to \"{issue.CorrectedValueData}\")"
-                    : $"Value to remove: {issue.ValueNameToDelete}"
-                : $"Key to remove: {issue.SubKeyNameToDelete}",
+                    ? L.F("Value to reset: {0} (back to \"{1}\")", issue.ValueNameToDelete, issue.CorrectedValueData)
+                    : L.F("Value to remove: {0}", issue.ValueNameToDelete)
+                : L.F("Key to remove: {0}", issue.SubKeyNameToDelete),
         });
 
-        MessageBox.Show(details, $"Details - {issue.DisplayName}", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(details, L.F("Details - {0}", issue.DisplayName), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void ContextSearchOnline_Click(object sender, RoutedEventArgs e)
@@ -119,7 +120,7 @@ public partial class RegistryCleanerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<RegistryIssueListItem>().ToList();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one issue to search online for information about it.");
+            SetStatus(L.T("Select exactly one issue to search online for information about it."));
             return;
         }
 
@@ -134,11 +135,11 @@ public partial class RegistryCleanerWindow : Window
             // across the elevation boundary. explorer.exe runs at the normal user
             // integrity level and reliably brokers the handoff.
             Process.Start(new ProcessStartInfo("explorer.exe", url) { UseShellExecute = true });
-            SetStatus($"Opened a web search for {issue.DisplayName} in your browser.");
+            SetStatus(L.F("Opened a web search for {0} in your browser.", issue.DisplayName));
         }
         catch (Exception ex)
         {
-            SetStatus($"Could not open your browser: {ex.Message}");
+            SetStatus(L.F("Could not open your browser: {0}", ex.Message));
         }
     }
 
@@ -147,24 +148,25 @@ public partial class RegistryCleanerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<RegistryIssueListItem>().ToList();
         if (selected.Count == 0)
         {
-            SetStatus("Nothing is selected. Select one or more issues first.");
+            SetStatus(L.T("Nothing is selected. Select one or more issues first."));
             return;
         }
 
         var anyResets = selected.Any(i => i.Issue.CorrectedValueData is not null);
         var names = string.Join(", ", selected.Select(i => i.DisplayName));
-        var actionWord = anyResets ? "Remove/reset" : "Remove";
+        var countText = L.N(selected.Count, "{0} registry item", "{0} registry items");
+        var question = anyResets ? L.F("Remove or reset {0}?", countText) : L.F("Remove {0}?", countText);
         var confirm = MessageBox.Show(
-            $"{actionWord} {selected.Count} registry item(s)?\n\n{names}\n\n" +
-            "Each one is backed up as a .reg file first, so it can always be restored by double-clicking the backup file. " +
-            (anyResets ? "Some of these are reset to Windows' normal safe value rather than deleted outright." : ""),
-            "Confirm removal",
+            question + "\n\n" + names + "\n\n" +
+            L.T("Each one is backed up as a .reg file first, so it can always be restored by double-clicking the backup file.") +
+            (anyResets ? " " + L.T("Some of these are reset to Windows' normal safe value rather than deleted outright.") : ""),
+            L.T("Confirm removal"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Cancelled.");
+            SetStatus(L.T("Cancelled."));
             return;
         }
 
@@ -177,17 +179,17 @@ public partial class RegistryCleanerWindow : Window
         foreach (var item in selected)
         {
             var isReset = item.Issue.CorrectedValueData is not null;
-            SetStatus($"{(isReset ? "Resetting" : "Removing")} {item.DisplayName}...");
+            SetStatus(isReset ? L.F("Resetting {0}...", item.DisplayName) : L.F("Removing {0}...", item.DisplayName));
 
             var outcome = await _cleaner.RemoveAsync(item.Issue);
-            var verb = isReset ? "reset to a safe default" : "removed";
+            var verb = isReset ? L.T("reset to a safe default") : L.T("removed");
 
             var line = outcome.Success
-                ? $"{item.DisplayName}: {verb}" + (outcome.BackupPath is not null ? $" (backed up to {outcome.BackupPath})" : "")
-                : $"{item.DisplayName}: FAILED - {outcome.Error}";
+                ? $"{item.DisplayName}: {verb}" + (outcome.BackupPath is not null ? " " + L.F("(backed up to {0})", outcome.BackupPath) : "")
+                : L.F("{0}: FAILED - {1}", item.DisplayName, outcome.Error);
 
             StepLogList.Items.Add(line);
-            SetStatus(outcome.Success ? $"{item.DisplayName} {verb}." : $"{item.DisplayName} could not be changed: {outcome.Error}");
+            SetStatus(outcome.Success ? $"{item.DisplayName}: {verb}." : L.F("{0} could not be changed: {1}", item.DisplayName, outcome.Error));
 
             if (outcome.Success)
                 removedItems.Add(item);
@@ -198,7 +200,7 @@ public partial class RegistryCleanerWindow : Window
 
         ScanButton.IsEnabled = true;
 
-        SetStatus($"Done. {removedItems.Count} of {selected.Count} item(s) changed.");
+        SetStatus(L.F("Done. {0} of {1} changed.", removedItems.Count, L.N(selected.Count, "{0} item", "{0} items")));
     }
 
     private void SetStatus(string message)

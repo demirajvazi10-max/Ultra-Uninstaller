@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -24,7 +25,9 @@ public sealed class ShellIntegrationService
     public void Register(string executablePath)
     {
         using var verbKey = Registry.CurrentUser.CreateSubKey(VerbKeyPath);
-        verbKey.SetValue(string.Empty, VerbName);
+        // Shown in Explorer's right-click menu, so it's written in the app's current
+        // language at the moment the user turns the integration on.
+        verbKey.SetValue(string.Empty, L.T(VerbName));
         verbKey.SetValue("Icon", $"\"{executablePath}\",0");
 
         using var commandKey = verbKey.CreateSubKey("command");

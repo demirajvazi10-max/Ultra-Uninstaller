@@ -1,3 +1,4 @@
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 
 namespace UltraUninstaller.App;
@@ -20,5 +21,5 @@ public sealed class HealthScoreFactorListItem
     /// since WPF's ListView+GridView doesn't give rows a meaningful accessible Name
     /// on its own and NVDA (unlike JAWS) needs one explicitly set to announce anything.
     /// </summary>
-    public string AutomationName => $"{Label}, {PointsDisplay} points. {Detail}";
+    public string AutomationName => L.F("{0}, {1} points. {2}", Label, PointsDisplay, Detail);
 }

@@ -1,3 +1,4 @@
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 
 namespace UltraUninstaller.App;
@@ -16,11 +17,11 @@ public sealed class RegistryIssueListItem
 
     public string CategoryDisplay => Issue.Category switch
     {
-        RegistryIssueCategory.OrphanedUninstallEntry => "Orphaned Uninstall entry",
-        RegistryIssueCategory.OrphanedStartupEntry => "Orphaned Startup entry",
-        RegistryIssueCategory.SecurityReview => "Security review - known hijack technique",
-        RegistryIssueCategory.SuspiciousStartupCommand => "Security review - suspicious command",
-        _ => "Unknown",
+        RegistryIssueCategory.OrphanedUninstallEntry => L.T("Orphaned Uninstall entry"),
+        RegistryIssueCategory.OrphanedStartupEntry => L.T("Orphaned Startup entry"),
+        RegistryIssueCategory.SecurityReview => L.T("Security review - known hijack technique"),
+        RegistryIssueCategory.SuspiciousStartupCommand => L.T("Security review - suspicious command"),
+        _ => L.T("Unknown"),
     };
 
     /// <summary>

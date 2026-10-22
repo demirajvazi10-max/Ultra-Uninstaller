@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -159,7 +160,7 @@ public sealed class ForceRemovalService
             RegistryScope.LocalMachine64 => (RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64), subPath64),
             RegistryScope.LocalMachine32OnWow64 => (RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32), subPathWow),
             RegistryScope.CurrentUser => (RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64), subPath64),
-            _ => throw new ArgumentOutOfRangeException(nameof(app), "Unknown registry scope."),
+            _ => throw new ArgumentOutOfRangeException(nameof(app), L.T("Unknown registry scope.")),
         };
     }
 }

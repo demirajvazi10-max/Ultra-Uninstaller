@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using UltraUninstaller.Core.Localization;
 using UltraUninstaller.Core.Models;
 using UltraUninstaller.Core.Services;
 
@@ -34,7 +35,7 @@ public partial class StartupManagerWindow : Window
         StepLogList.Items.Clear();
 
         var progressWindow = new ScanProgressWindow { Owner = this };
-        progressWindow.ReportProgressText("Starting scan...");
+        progressWindow.ReportProgressText(L.T("Starting scan..."));
 
         var progress = new Progress<string>(message =>
         {
@@ -71,16 +72,16 @@ public partial class StartupManagerWindow : Window
                 _items.Add(new StartupItemListItem(item));
 
             var enabledCount = results.Count(r => r.IsEnabled);
-            SetStatus($"Found {results.Count} startup item{(results.Count == 1 ? "" : "s")} " +
-                      $"({enabledCount} enabled, {results.Count - enabledCount} disabled).");
+            SetStatus(L.F("Found {0} ({1} enabled, {2} disabled).",
+                L.N(results.Count, "{0} startup item", "{0} startup items"), enabledCount, results.Count - enabledCount));
         }
         catch (OperationCanceledException)
         {
-            SetStatus("Scan cancelled.");
+            SetStatus(L.T("Scan cancelled."));
         }
         catch (Exception ex)
         {
-            SetStatus($"Scan failed: {ex.Message}");
+            SetStatus(L.F("Scan failed: {0}", ex.Message));
         }
         finally
         {
@@ -101,23 +102,23 @@ public partial class StartupManagerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<StartupItemListItem>().ToList();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one item to show its details.");
+            SetStatus(L.T("Select exactly one item to show its details."));
             return;
         }
 
         var item = selected[0].Item;
         var details = string.Join(Environment.NewLine, new[]
         {
-            $"Name: {item.Name}",
-            $"Source: {selected[0].SourceDisplay}",
-            $"Status: {selected[0].StatusDisplay}",
-            $"Trust: {selected[0].TrustDisplay}",
-            $"Description: {item.Description ?? "(none)"}",
-            $"Publisher: {item.Publisher ?? "(unknown)"}",
-            $"File path: {item.FilePath ?? "(unknown)"}",
+            L.F("Name: {0}", item.Name),
+            L.F("Source: {0}", selected[0].SourceDisplay),
+            L.F("Status: {0}", selected[0].StatusDisplay),
+            L.F("Trust: {0}", selected[0].TrustDisplay),
+            L.F("Description: {0}", item.Description ?? L.T("(none)")),
+            L.F("Publisher: {0}", item.Publisher ?? L.T("(unknown)")),
+            L.F("File path: {0}", item.FilePath ?? L.T("(unknown)")),
         });
 
-        MessageBox.Show(details, $"Details - {item.Name}", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(details, L.F("Details - {0}", item.Name), MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void ContextSearchOnline_Click(object sender, RoutedEventArgs e)
@@ -125,7 +126,7 @@ public partial class StartupManagerWindow : Window
         var selected = ResultsListView.SelectedItems.Cast<StartupItemListItem>().ToList();
         if (selected.Count != 1)
         {
-            SetStatus("Select exactly one item to search online for information about it.");
+            SetStatus(L.T("Select exactly one item to search online for information about it."));
             return;
         }
 
@@ -141,11 +142,11 @@ public partial class StartupManagerWindow : Window
             // across the elevation boundary. explorer.exe runs at the normal user
             // integrity level and reliably brokers the handoff.
             Process.Start(new ProcessStartInfo("explorer.exe", url) { UseShellExecute = true });
-            SetStatus($"Opened a web search for {item.Name} in your browser.");
+            SetStatus(L.F("Opened a web search for {0} in your browser.", item.Name));
         }
         catch (Exception ex)
         {
-            SetStatus($"Could not open your browser: {ex.Message}");
+            SetStatus(L.F("Could not open your browser: {0}", ex.Message));
         }
     }
 
@@ -157,21 +158,23 @@ public partial class StartupManagerWindow : Window
 
         if (selected.Count == 0)
         {
-            SetStatus($"Nothing selected needs to be {(enable ? "enabled" : "disabled")}.");
+            SetStatus(enable ? L.T("Nothing selected needs to be enabled.") : L.T("Nothing selected needs to be disabled."));
             return;
         }
 
         var names = string.Join(", ", selected.Select(i => i.Name));
         var confirm = MessageBox.Show(
-            $"{(enable ? "Enable" : "Disable")} {selected.Count} item(s)?\n\n{names}\n\n" +
-            "This can always be reversed the same way.",
-            enable ? "Confirm enable" : "Confirm disable",
+            (enable
+                ? L.F("Enable {0}?", L.N(selected.Count, "{0} item", "{0} items"))
+                : L.F("Disable {0}?", L.N(selected.Count, "{0} item", "{0} items"))) + "\n\n" + names + "\n\n" +
+            L.T("This can always be reversed the same way."),
+            enable ? L.T("Confirm enable") : L.T("Confirm disable"),
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
         if (confirm != MessageBoxResult.Yes)
         {
-            SetStatus("Cancelled.");
+            SetStatus(L.T("Cancelled."));
             return;
         }
 
@@ -181,16 +184,16 @@ public partial class StartupManagerWindow : Window
 
         foreach (var item in selected)
         {
-            SetStatus($"{(enable ? "Enabling" : "Disabling")} {item.Name}...");
+            SetStatus(enable ? L.F("Enabling {0}...", item.Name) : L.F("Disabling {0}...", item.Name));
 
             var outcome = await _startupManager.SetEnabledAsync(item.Item, enable);
 
             StepLogList.Items.Add(outcome.Success
-                ? $"{item.Name}: {(enable ? "enabled" : "disabled")}"
-                : $"{item.Name}: FAILED - {outcome.Error}");
+                ? $"{item.Name}: {(enable ? L.T("enabled") : L.T("disabled"))}"
+                : L.F("{0}: FAILED - {1}", item.Name, outcome.Error));
         }
 
-        SetStatus("Done.");
+        SetStatus(L.T("Done."));
         await ScanAsync();
     }
 

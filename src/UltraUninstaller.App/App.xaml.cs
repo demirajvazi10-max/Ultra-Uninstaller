@@ -1,4 +1,5 @@
 using System.Windows;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.App;
 
@@ -8,6 +9,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Pick the language before any window is created, so every label, menu and
+        // screen reader name comes up in that language from the very first frame.
+        L.SetLanguage(LanguageSettings.Load());
+
         // Last-resort safety net: a raw .NET crash dialog is unreadable/unusable
         // with a screen reader (it's not a normal accessible Window). If something
         // unexpected ever does slip past a local try/catch, show one clear message
@@ -15,8 +20,8 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             MessageBox.Show(
-                $"UltraUninstaller ran into a problem and had to stop the current action:\n\n{args.Exception.Message}\n\nYou can keep using the app.",
-                "UltraUninstaller - unexpected error",
+                L.F("UltraUninstaller ran into a problem and had to stop the current action:\n\n{0}\n\nYou can keep using the app.", args.Exception.Message),
+                L.T("UltraUninstaller - unexpected error"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             args.Handled = true;

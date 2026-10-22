@@ -1,7 +1,8 @@
 <Window x:Class="UltraUninstaller.App.RegistryCleanerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Registry Cleaner - UltraUninstaller"
+        xmlns:l="clr-namespace:UltraUninstaller.App"
+        Title="{l:Tr 'Registry Cleaner - UltraUninstaller'}"
         Height="640" Width="920"
         MinHeight="420" MinWidth="640">
 
@@ -15,20 +16,20 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="ScanButton" Content="_Scan for issues" Click="ScanButton_Click"
-                    AutomationProperties.Name="Scan the registry for orphaned entries"/>
+            <Button x:Name="ScanButton" Content="{l:Tr '_Scan for issues'}" Click="ScanButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Scan the registry for orphaned entries'}"/>
         </StackPanel>
 
         <ListView x:Name="ResultsListView" Grid.Row="1"
-                  AutomationProperties.Name="Registry issues found"
+                  AutomationProperties.Name="{l:Tr 'Registry issues found'}"
                   SelectionMode="Extended"
                   VirtualizingPanel.IsVirtualizing="False"
                   SelectionChanged="ResultsListView_SelectionChanged">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="Category" Width="150" DisplayMemberBinding="{Binding CategoryDisplay}"/>
-                    <GridViewColumn Header="Name" Width="230" DisplayMemberBinding="{Binding DisplayName}"/>
-                    <GridViewColumn Header="Reason" Width="400" DisplayMemberBinding="{Binding Reason}"/>
+                    <GridViewColumn Header="{l:Tr 'Category'}" Width="150" DisplayMemberBinding="{Binding CategoryDisplay}"/>
+                    <GridViewColumn Header="{l:Tr 'Name'}" Width="230" DisplayMemberBinding="{Binding DisplayName}"/>
+                    <GridViewColumn Header="{l:Tr 'Reason'}" Width="400" DisplayMemberBinding="{Binding Reason}"/>
                 </GridView>
             </ListView.View>
             <ListView.ItemContainerStyle>
@@ -38,27 +39,27 @@
             </ListView.ItemContainerStyle>
             <ListView.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="_Remove selected (backed up first)" Click="ContextRemoveSelected_Click"
-                              AutomationProperties.Name="Remove selected registry issues, backed up first"/>
-                    <MenuItem Header="Show _details" Click="ContextShowDetails_Click"
-                              AutomationProperties.Name="Show details for the selected issue"/>
-                    <MenuItem Header="_Search online for information about this" Click="ContextSearchOnline_Click"
-                              AutomationProperties.Name="Search online for information about the selected issue"/>
+                    <MenuItem Header="{l:Tr '_Remove selected (backed up first)'}" Click="ContextRemoveSelected_Click"
+                              AutomationProperties.Name="{l:Tr 'Remove selected registry issues, backed up first'}"/>
+                    <MenuItem Header="{l:Tr 'Show _details'}" Click="ContextShowDetails_Click"
+                              AutomationProperties.Name="{l:Tr 'Show details for the selected issue'}"/>
+                    <MenuItem Header="{l:Tr '_Search online for information about this'}" Click="ContextSearchOnline_Click"
+                              AutomationProperties.Name="{l:Tr 'Search online for information about the selected issue'}"/>
                 </ContextMenu>
             </ListView.ContextMenu>
         </ListView>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,8">
-            <Button x:Name="RemoveSelectedButton" Content="_Remove selected (backed up first)" Click="RemoveSelectedButton_Click"
-                    AutomationProperties.Name="Remove selected registry issues, backed up first" IsEnabled="False"/>
+            <Button x:Name="RemoveSelectedButton" Content="{l:Tr '_Remove selected (backed up first)'}" Click="RemoveSelectedButton_Click"
+                    AutomationProperties.Name="{l:Tr 'Remove selected registry issues, backed up first'}" IsEnabled="False"/>
         </StackPanel>
 
         <TextBlock x:Name="StatusText" Grid.Row="3" FontWeight="Bold" Margin="0,0,0,4"
-                   AutomationProperties.Name="Current status"
+                   AutomationProperties.Name="{l:Tr 'Current status'}"
                    AutomationProperties.LiveSetting="Assertive"
-                   Text="Press Scan for issues to check for orphaned Uninstall and Startup registry entries."/>
+                   Text="{l:Tr 'Press Scan for issues to check for orphaned Uninstall and Startup registry entries.'}"/>
 
         <ListBox x:Name="StepLogList" Grid.Row="4"
-                 AutomationProperties.Name="Removal step log"/>
+                 AutomationProperties.Name="{l:Tr 'Removal step log'}"/>
     </Grid>
 </Window>

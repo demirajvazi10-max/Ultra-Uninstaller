@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using UltraUninstaller.Core.Models;
+using UltraUninstaller.Core.Localization;
 
 namespace UltraUninstaller.Core.Services;
 
@@ -60,7 +61,7 @@ public sealed class ForceUninstallOrchestrator
         }
 
         // --- Layer 1 & 2: native silent uninstall -----------------------------------
-        Report($"Attempting silent uninstall of {app.DisplayName}", UninstallStepStatus.Started);
+        Report(L.F("Attempting silent uninstall of {0}", app.DisplayName), UninstallStepStatus.Started);
 
         var command = InstallerTypeDetector.BuildSilentCommand(app);
         if (command is not null)
@@ -73,18 +74,18 @@ public sealed class ForceUninstallOrchestrator
 
             if (!stillPresent)
             {
-                Report($"{app.DisplayName} was removed silently.", UninstallStepStatus.Succeeded,
-                    runOutcome.Success ? null : "Exit code was non-zero, but the app is confirmed gone from the registry.");
+                Report(L.F("{0} was removed silently.", app.DisplayName), UninstallStepStatus.Succeeded,
+                    runOutcome.Success ? null : L.T("Exit code was non-zero, but the app is confirmed gone from the registry."));
 
                 var layer = command.Kind == InstallerKind.Msi ? UninstallLayer.MsiQuiet : UninstallLayer.NativeSilent;
                 return new UninstallResult { Success = true, LayerUsed = layer, Steps = steps, BackupPath = backupPath };
             }
 
-            Report("Silent uninstall did not remove the app.", UninstallStepStatus.Failed, runOutcome.ErrorOutput);
+            Report(L.T("Silent uninstall did not remove the app."), UninstallStepStatus.Failed, runOutcome.ErrorOutput);
         }
         else
         {
-            Report("No usable uninstall command was found in the registry for this app.", UninstallStepStatus.Skipped);
+            Report(L.T("No usable uninstall command was found in the registry for this app."), UninstallStepStatus.Skipped);
         }
 
         // --- Layer 3: force removal, only if explicitly allowed ---------------------
@@ -95,52 +96,52 @@ public sealed class ForceUninstallOrchestrator
                 Success = false,
                 LayerUsed = UninstallLayer.Failed,
                 Steps = steps,
-                FailureReason = "Silent uninstall failed and Force Removal was not enabled for this attempt.",
+                FailureReason = L.T("Silent uninstall failed and Force Removal was not enabled for this attempt."),
                 BackupPath = backupPath,
             };
         }
 
         if (options.CreateRestorePointBeforeForceRemoval)
         {
-            Report("Creating a System Restore point before force removal", UninstallStepStatus.Started);
-            var restoreOutcome = await _backup.TryCreateRestorePointAsync($"Before UltraUninstaller force-removed {app.DisplayName}");
-            Report(restoreOutcome.Success ? "Restore point created." : "Restore point could not be created.",
+            Report(L.T("Creating a System Restore point before force removal"), UninstallStepStatus.Started);
+            var restoreOutcome = await _backup.TryCreateRestorePointAsync(L.F("Before UltraUninstaller force-removed {0}", app.DisplayName));
+            Report(restoreOutcome.Success ? L.T("Restore point created.") : L.T("Restore point could not be created."),
                 restoreOutcome.Success ? UninstallStepStatus.Succeeded : UninstallStepStatus.Failed,
                 restoreOutcome.Message);
         }
 
         if (!string.IsNullOrWhiteSpace(app.InstallLocation))
         {
-            Report("Backing up install folder before deleting it", UninstallStepStatus.Started);
+            Report(L.T("Backing up install folder before deleting it"), UninstallStepStatus.Started);
             var folderBackup = await _backup.BackUpFolderAsync(app.InstallLocation!, app.DisplayName);
             backupPath = folderBackup.Path;
-            Report(folderBackup.Success ? "Install folder backed up." : "Install folder backup skipped.",
+            Report(folderBackup.Success ? L.T("Install folder backed up.") : L.T("Install folder backup skipped."),
                 folderBackup.Success ? UninstallStepStatus.Succeeded : UninstallStepStatus.Skipped,
                 folderBackup.Message);
         }
 
-        Report("Backing up registry entry", UninstallStepStatus.Started);
+        Report(L.T("Backing up registry entry"), UninstallStepStatus.Started);
         var regBackup = await _backup.ExportRegistryKeyAsync(app.FullRegistryPath, app.DisplayName);
-        Report(regBackup.Success ? "Registry entry backed up." : "Registry backup failed.",
+        Report(regBackup.Success ? L.T("Registry entry backed up.") : L.T("Registry backup failed."),
             regBackup.Success ? UninstallStepStatus.Succeeded : UninstallStepStatus.Failed,
             regBackup.Message);
 
-        Report("Deleting install folder", UninstallStepStatus.Started);
+        Report(L.T("Deleting install folder"), UninstallStepStatus.Started);
         var folderOk = _forceRemoval.RemoveInstallFolder(app, out var folderError);
-        Report(folderOk ? "Install folder deleted." : "Could not delete install folder.",
+        Report(folderOk ? L.T("Install folder deleted.") : L.T("Could not delete install folder."),
             folderOk ? UninstallStepStatus.Succeeded : UninstallStepStatus.Failed, folderError);
 
-        Report("Removing shortcuts", UninstallStepStatus.Started);
+        Report(L.T("Removing shortcuts"), UninstallStepStatus.Started);
         var removedShortcuts = _forceRemoval.RemoveShortcuts(app);
-        Report($"Removed {removedShortcuts.Count} shortcut(s).", UninstallStepStatus.Succeeded);
+        Report(L.F("Removed {0}.", L.N(removedShortcuts.Count, "{0} shortcut", "{0} shortcuts")), UninstallStepStatus.Succeeded);
 
-        Report("Removing leftover data folders", UninstallStepStatus.Started);
+        Report(L.T("Removing leftover data folders"), UninstallStepStatus.Started);
         var removedData = _forceRemoval.RemoveAppDataRemnants(app);
-        Report($"Removed {removedData.Count} leftover data folder(s).", UninstallStepStatus.Succeeded);
+        Report(L.F("Removed {0}.", L.N(removedData.Count, "{0} leftover data folder", "{0} leftover data folders")), UninstallStepStatus.Succeeded);
 
-        Report("Removing registry entry", UninstallStepStatus.Started);
+        Report(L.T("Removing registry entry"), UninstallStepStatus.Started);
         var regOk = _forceRemoval.RemoveUninstallRegistryEntry(app, out var regError);
-        Report(regOk ? "Registry entry removed." : "Could not remove registry entry.",
+        Report(regOk ? L.T("Registry entry removed.") : L.T("Could not remove registry entry."),
             regOk ? UninstallStepStatus.Succeeded : UninstallStepStatus.Failed, regError);
 
         var success = folderOk && regOk;
@@ -150,7 +151,7 @@ public sealed class ForceUninstallOrchestrator
             Success = success,
             LayerUsed = success ? UninstallLayer.ForceRemoval : UninstallLayer.Failed,
             Steps = steps,
-            FailureReason = success ? null : "One or more force-removal steps failed. See steps for detail.",
+            FailureReason = success ? null : L.T("One or more force-removal steps failed. See steps for detail."),
             BackupPath = backupPath,
         };
     }
