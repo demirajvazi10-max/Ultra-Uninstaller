@@ -19,6 +19,8 @@
                               Click="SerbianLanguageMenuItem_Click" AutomationProperties.Name="Srpski, latinica"/>
                 </MenuItem>
                 <Separator/>
+                <MenuItem Header="{l:Tr 'How to support this _project...'}" Click="SupportMenuItem_Click"
+                          AutomationProperties.Name="{l:Tr 'How to support this project'}"/>
                 <MenuItem Header="{l:Tr '_About UltraUninstaller...'}" Click="AboutMenuItem_Click"
                           AutomationProperties.Name="{l:Tr 'About UltraUninstaller'}"/>
                 <Separator/>

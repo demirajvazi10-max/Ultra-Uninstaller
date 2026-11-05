@@ -18,6 +18,9 @@
                  Margin="0,0,0,14"
                  AutomationProperties.Name="{l:Tr 'About UltraUninstaller'}"/>
 
+        <Button Content="{l:Tr 'How to _donate with a card (no PayPal needed)'}" Click="SupportGuideButton_Click"
+                HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                AutomationProperties.Name="{l:Tr 'How to donate with a card (no PayPal needed)'}"/>
         <Button Content="{l:Tr 'Support development on _GitHub Sponsors'}" Tag="https://github.com/sponsors/demirajvazi10-max"
                 Click="LinkButton_Click" HorizontalAlignment="Stretch" Margin="0,0,0,6"
                 AutomationProperties.Name="{l:Tr 'Support development on GitHub Sponsors'}"

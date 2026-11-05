@@ -265,9 +265,13 @@ worked, not just "done".
 
 **File → About UltraUninstaller** opens a small window with the version, author and
 license, plus buttons that open **GitHub Sponsors**, **Ko-fi**, **PayPal**, this
-project's GitHub page and the Ultra Creative Suite on GitHub in your browser. The text
-at the top is a read-only text box that gets focus first, so JAWS/NVDA can read it line
-by line with the arrow keys; Escape closes the window.
+project's GitHub page and the Ultra Creative Suite on GitHub in your browser.
+
+**How to donate with a card (no PayPal needed)** — also in **File → How to support this
+project** — opens a guide, in English and Serbian, to the three ways of supporting the project:
+Ko-fi (by card, no account needed), GitHub Sponsors (monthly or one-time, card, free GitHub
+account) and a bank transfer from Serbia (Demir Ajvazi, account `265-0000006185877-28`,
+Raiffeisen banka). It has buttons to open Ko-fi or GitHub Sponsors and to copy the account number.
 
 ### Exit
 

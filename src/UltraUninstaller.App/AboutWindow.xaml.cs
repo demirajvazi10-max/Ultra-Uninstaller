@@ -55,6 +55,9 @@ public partial class AboutWindow : Window
         }
     }
 
+    private void SupportGuideButton_Click(object sender, RoutedEventArgs e)
+        => UltraSupport.SupportInfo.Show(this, "UltraUninstaller", L.Current == AppLanguage.Serbian);
+
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
